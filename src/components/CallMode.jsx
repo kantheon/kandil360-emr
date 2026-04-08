@@ -316,7 +316,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   const localGoals = getPatientEntries(patient.id, 'carePlanGoals');
   const mergedAppointments = [
     ...patient.appointments,
-    ...localAppts.map(a => ({ date: a.slot?.split(' ')[0] || 'TBD', time: a.slot?.split(' ').slice(1).join(' ') || 'TBD', provider: a.provider || '', type: a.type || 'Appointment', location: a.location || '', status: 'Scheduled' }))
+    ...localAppts.map(a => ({ date: null, dateLabel: a.slot || 'TBD', time: '', provider: a.provider || '', type: a.type || 'Appointment', location: a.location || '', status: 'Scheduled' }))
   ];
   const mergedGoals = [
     ...patient.carePlan.goals,
@@ -422,19 +422,26 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
 
           <InfoCard title="Appointments" icon={CalendarDaysIcon} count={mergedAppointments.length} defaultOpen
             action={<button onClick={()=>addEntry('appointment')} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700"><PlusIcon className="w-3.5 h-3.5" />Schedule Appointment</button>}>
-            <div className="space-y-2">{mergedAppointments.map((a,i)=>(
+            <div className="space-y-2">{mergedAppointments.map((a,i)=>{
+              const d = a.date ? new Date(a.date+'T00:00:00') : null;
+              const validDate = d && !isNaN(d.getTime());
+              return (
               <div key={i} className="flex items-center gap-3 bg-surface-alt rounded-lg p-2.5">
                 <div className="bg-primary-50 rounded-md p-1.5 text-center min-w-[40px]">
-                  <p className="text-[9px] text-primary-500 font-medium">{new Date(a.date+'T00:00:00').toLocaleDateString('en-US',{month:'short'})}</p>
-                  <p className="text-base font-bold text-primary-700 leading-tight">{new Date(a.date+'T00:00:00').getDate()}</p>
+                  {validDate ? (<>
+                    <p className="text-[9px] text-primary-500 font-medium">{d.toLocaleDateString('en-US',{month:'short'})}</p>
+                    <p className="text-base font-bold text-primary-700 leading-tight">{d.getDate()}</p>
+                  </>) : (
+                    <p className="text-[10px] font-bold text-primary-700">{a.dateLabel || 'TBD'}</p>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-text-primary">{a.type}</p>
-                  <p className="text-[11px] text-text-muted">{a.provider} &middot; {a.time} &middot; {a.location}</p>
+                  <p className="text-[11px] text-text-muted">{a.provider}{a.time ? ` · ${a.time}` : ''}{a.location ? ` · ${a.location}` : ''}</p>
                 </div>
                 <span className="badge badge-active text-[9px]">{a.status}</span>
-              </div>
-            ))}{mergedAppointments.length===0&&<p className="text-xs text-text-muted">None</p>}</div>
+              </div>);
+            })}{mergedAppointments.length===0&&<p className="text-xs text-text-muted">None</p>}</div>
           </InfoCard>
 
           <InfoCard title="Admissions" icon={BuildingOffice2Icon} count={patient.admissions.length}>
