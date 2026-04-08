@@ -323,9 +323,24 @@ export default function CarePlanTab({ patient }) {
                               <select
                                 value={status}
                                 onChange={e => {
+                                  const newStatus = e.target.value;
+                                  const oldStatus = status;
+                                  // Save to localStorage
                                   const statuses = getIvStatuses(goal.id);
-                                  statuses[i] = e.target.value;
+                                  statuses[i] = newStatus;
                                   localStorage.setItem(`k360_iv_${patient.id}_${goal.id}`, JSON.stringify(statuses));
+                                  // Log as a progress entry for audit trail
+                                  addEntry(patient.id, 'carePlanProgress', {
+                                    goalId: goal.id,
+                                    goalDescription: goal.description,
+                                    healthConcern: goal.healthConcern || '',
+                                    status: goal.status,
+                                    note: `Intervention "${iv}" changed from ${oldStatus} to ${newStatus}`,
+                                    goalEvaluation: newStatus === 'Completed' ? 'Partially Met' : '',
+                                    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+                                    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                                    interventionUpdate: { index: i, intervention: iv, from: oldStatus, to: newStatus },
+                                  });
                                   setExpandedGoals(prev => new Set(prev));
                                 }}
                                 className={`input-field py-1 px-2 text-[10px] font-semibold w-auto min-w-[100px] shrink-0 ${style.text}`}
