@@ -72,19 +72,8 @@ export default function PatientChart() {
 
   return (
     <div className="animate-fade-in">
-      {/* ===== STICKY HEADER - pinned to top of content area ===== */}
+      {/* ===== STICKY HEADER - patient bar + tabs, never scrolls ===== */}
       <div className="sticky top-12 lg:top-0 z-20 bg-white shadow-sm">
-        {/* Allergy strip */}
-        {patient.allergies.length > 0 && (
-          <div className="bg-danger-50 border-b border-danger-100 px-4 lg:px-6 py-1 flex items-center gap-2 overflow-x-auto">
-            <ShieldExclamationIcon className="w-3.5 h-3.5 text-danger-500 shrink-0" />
-            <span className="text-[11px] font-bold text-danger-600 shrink-0">ALLERGIES:</span>
-            <span className="text-[11px] text-danger-600 whitespace-nowrap">
-              {patient.allergies.map(a => `${a.allergen} (${a.reaction})`).join(' | ')}
-            </span>
-          </div>
-        )}
-
         {/* Patient banner */}
         <div className="px-4 lg:px-6 py-2.5 border-b border-border-light">
           <div className="flex items-center gap-3 max-w-7xl mx-auto">
@@ -141,9 +130,9 @@ export default function PatientChart() {
           </div>
         </div>
 
-        {/* Tab bar with icons */}
+        {/* Tab bar - flex grow to fill width */}
         <div className="px-2 lg:px-4 overflow-x-auto bg-surface-alt border-b border-border-light">
-          <div className="flex gap-1 min-w-max max-w-7xl mx-auto py-1">
+          <div className="flex gap-1 max-w-7xl mx-auto py-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const count = tab.id === 'notes' ? patient.progressNotes.length :
@@ -156,14 +145,14 @@ export default function PatientChart() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 lg:px-4 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
                     isActive
                       ? 'bg-white text-primary-700 shadow-sm border border-border-light'
                       : 'text-text-secondary hover:bg-white/60 hover:text-text-primary border border-transparent'
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-primary-500' : 'text-text-muted'}`} />
-                  <span>{tab.label}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
                   {count > 0 && (
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none ${
                       isActive ? 'bg-primary-100 text-primary-700' : 'bg-border-light text-text-muted'
@@ -177,6 +166,17 @@ export default function PatientChart() {
           </div>
         </div>
       </div>
+
+      {/* Allergy alert - scrolls with content, sits right under the sticky header */}
+      {patient.allergies.length > 0 && (
+        <div className="bg-danger-50 border-b border-danger-100 px-4 lg:px-6 py-1.5 flex items-center gap-2">
+          <ShieldExclamationIcon className="w-3.5 h-3.5 text-danger-500 shrink-0" />
+          <span className="text-[11px] font-bold text-danger-600 shrink-0">ALLERGIES:</span>
+          <span className="text-[11px] text-danger-600">
+            {patient.allergies.map(a => `${a.allergen} (${a.reaction})`).join(' | ')}
+          </span>
+        </div>
+      )}
 
       {/* Tab Content */}
       <div className="p-4 lg:p-6">
