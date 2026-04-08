@@ -108,7 +108,10 @@ export default function AppointmentsTab({ patient }) {
             </div>
             <div>
               <label className="text-xs font-medium text-text-secondary mb-1 block">Time</label>
-              <input type="text" className="input-field py-2 text-xs" placeholder="e.g. 10:00 AM" value={apptTime} onChange={e => setApptTime(e.target.value)} />
+              <select value={apptTime} onChange={e => setApptTime(e.target.value)} className="input-field py-2 text-xs">
+                <option value="">Select time...</option>
+                {['7:00 AM','7:30 AM','8:00 AM','8:30 AM','9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
           </div>
           <div>
