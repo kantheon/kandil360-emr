@@ -318,22 +318,20 @@ export default function CarePlanTab({ patient }) {
                           const style = ivStatusStyles[status] || ivStatusStyles['Not Started'];
                           return (
                             <div key={i} className={`flex items-center gap-2 rounded-lg p-2 text-xs transition-all ${style.bg}`}>
-                              <button
-                                onClick={() => cycleIvStatus(goal.id, i)}
-                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${
-                                  status === 'Completed' ? 'border-accent-500 bg-accent-500' :
-                                  status === 'In Progress' ? 'border-warn-400 bg-warn-100' :
-                                  status === 'Discontinued' ? 'border-danger-300 bg-danger-100' :
-                                  'border-gray-300 bg-white'
-                                }`}
-                                title={`Status: ${status} (click to change)`}
-                              >
-                                {status === 'Completed' && <CheckCircleIcon className="w-3 h-3 text-white" />}
-                                {status === 'In Progress' && <div className="w-2 h-2 bg-warn-500 rounded-full" />}
-                                {status === 'Discontinued' && <span className="text-[8px] text-danger-500 font-bold">X</span>}
-                              </button>
+                              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot}`} />
                               <span className={`flex-1 ${status === 'Completed' ? 'line-through text-text-muted' : status === 'Discontinued' ? 'line-through text-danger-300' : 'text-text-secondary'}`}>{iv}</span>
-                              <span className={`text-[9px] font-semibold ${style.text} shrink-0`}>{status}</span>
+                              <select
+                                value={status}
+                                onChange={e => {
+                                  const statuses = getIvStatuses(goal.id);
+                                  statuses[i] = e.target.value;
+                                  localStorage.setItem(`k360_iv_${patient.id}_${goal.id}`, JSON.stringify(statuses));
+                                  setExpandedGoals(prev => new Set(prev));
+                                }}
+                                className={`input-field py-1 px-2 text-[10px] font-semibold w-auto min-w-[100px] shrink-0 ${style.text}`}
+                              >
+                                {interventionStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
                             </div>
                           );
                         })}

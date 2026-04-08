@@ -33,6 +33,9 @@ export default function CommunicationsTab({ patient }) {
   const [summary, setSummary] = useState('');
   const [outcome, setOutcome] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
+  const [hipaaVerified, setHipaaVerified] = useState(false);
+  const [phoneConsent, setPhoneConsent] = useState(false);
+  const [calledNumber, setCalledNumber] = useState('');
 
   const allComms = patient.communications || [];
 
@@ -43,7 +46,14 @@ export default function CommunicationsTab({ patient }) {
   const resetForm = () => {
     setDirection('Outbound'); setMethod('Phone'); setContactPerson(''); setContactRole('Patient');
     setSubject(''); setSummary(''); setOutcome(''); setFollowUpDate('');
+    setHipaaVerified(false); setPhoneConsent(false); setCalledNumber('');
   };
+
+  // Build phone number options from patient data
+  const phoneOptions = [
+    { label: `Patient: ${patient.phone}`, value: patient.phone, person: `${patient.firstName} ${patient.lastName}` },
+    { label: `Emergency: ${patient.emergencyContact?.name} - ${patient.emergencyContact?.phone}`, value: patient.emergencyContact?.phone, person: patient.emergencyContact?.name },
+  ];
 
   const openAddForm = () => {
     setEditingEntry(null);
@@ -61,6 +71,9 @@ export default function CommunicationsTab({ patient }) {
     setSummary(comm.summary || '');
     setOutcome(comm.outcome || '');
     setFollowUpDate(comm.followUpDate || '');
+    setHipaaVerified(comm.hipaaVerified || false);
+    setPhoneConsent(comm.phoneConsent || false);
+    setCalledNumber(comm.calledNumber || '');
     setShowForm(true);
   };
 
@@ -77,6 +90,9 @@ export default function CommunicationsTab({ patient }) {
       outcome,
       followUpNeeded: !!followUpDate,
       followUpDate: followUpDate || null,
+      hipaaVerified,
+      phoneConsent,
+      calledNumber,
     };
     if (editingEntry) {
       updateEntry(patient.id, 'communications', editingEntry.id, entryData);
@@ -116,11 +132,42 @@ export default function CommunicationsTab({ patient }) {
 
       {/* Modal Form */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title={editingEntry ? 'Edit Communication' : 'Log Communication'} wide footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">{editingEntry ? 'Update' : 'Save'}</button></div>}>
+        {/* Phone number + compliance */}
+        <div className="bg-surface-alt rounded-xl p-3 mb-4 border border-border-light">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="text-xs font-medium text-text-secondary mb-1 block">Phone Number</label>
+              <select value={calledNumber} onChange={e => {
+                setCalledNumber(e.target.value);
+                const opt = phoneOptions.find(o => o.value === e.target.value);
+                if (opt) setContactPerson(opt.person);
+              }} className="input-field py-2 text-xs">
+                <option value="">Select number...</option>
+                {phoneOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                <option value="other">Other number...</option>
+              </select>
+              {calledNumber === 'other' && (
+                <input type="tel" className="input-field py-2 text-xs mt-1.5" placeholder="Enter phone number..." value="" onChange={e => setCalledNumber(e.target.value)} />
+              )}
+            </div>
+            <div className="flex flex-col justify-end gap-2">
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" checked={hipaaVerified} onChange={e => setHipaaVerified(e.target.checked)} className="w-4 h-4 accent-primary-600 rounded" />
+                <span className="text-xs font-medium text-text-primary">HIPAA Identity Verified</span>
+              </label>
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" checked={phoneConsent} onChange={e => setPhoneConsent(e.target.checked)} className="w-4 h-4 accent-primary-600 rounded" />
+                <span className="text-xs font-medium text-text-primary">Verbal Phone Consent</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Direction</label><select value={direction} onChange={e => setDirection(e.target.value)} className="input-field py-2 text-xs"><option>Outbound</option><option>Inbound</option></select></div>
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Method</label><select value={method} onChange={e => setMethod(e.target.value)} className="input-field py-2 text-xs"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option></select></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Method</label><select value={method} onChange={e => setMethod(e.target.value)} className="input-field py-2 text-xs"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option><option>Portal</option></select></div>
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Contact</label><input type="text" className="input-field py-2 text-xs" placeholder="Name" value={contactPerson} onChange={e => setContactPerson(e.target.value)} /></div>
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select value={contactRole} onChange={e => setContactRole(e.target.value)} className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option></select></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select value={contactRole} onChange={e => setContactRole(e.target.value)} className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option></select></div>
         </div>
         <div className="space-y-3 mb-4">
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Subject</label><input type="text" className="input-field py-2 text-xs" placeholder="Brief subject" value={subject} onChange={e => setSubject(e.target.value)} /></div>
