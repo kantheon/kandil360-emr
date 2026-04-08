@@ -315,11 +315,11 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   const localAppts = getPatientEntries(patient.id, 'appointments');
   const localGoals = getPatientEntries(patient.id, 'carePlanGoals');
   const mergedAppointments = [
-    ...mergedAppointments,
+    ...patient.appointments,
     ...localAppts.map(a => ({ date: a.slot?.split(' ')[0] || 'TBD', time: a.slot?.split(' ').slice(1).join(' ') || 'TBD', provider: a.provider || '', type: a.type || 'Appointment', location: a.location || '', status: 'Scheduled' }))
   ];
   const mergedGoals = [
-    ...mergedGoals,
+    ...patient.carePlan.goals,
     ...localGoals.map((g,i) => ({ id: `local-g-${i}`, description: g.description || g.healthConcern || 'New Goal', status: g.status || 'Not Started', targetDate: g.targetDate || '' }))
   ];
   // Force re-read on save by depending on saveCount
