@@ -31,7 +31,8 @@ export default function CarePlanTab({ patient }) {
   const [formDesc, setFormDesc] = useState('');
   const [formStatus, setFormStatus] = useState('Not Started');
   const [formTarget, setFormTarget] = useState('');
-  const [formInterventions, setFormInterventions] = useState(['']);
+  const [formCheckedInterventions, setFormCheckedInterventions] = useState(new Set());
+  const [formCustomInterventions, setFormCustomInterventions] = useState(['']);
   const [formBarriers, setFormBarriers] = useState('');
 
   const localGoals = getPatientEntries(patient.id, 'carePlanGoals');
@@ -59,7 +60,8 @@ export default function CarePlanTab({ patient }) {
     setFormDesc('');
     setFormStatus('Not Started');
     setFormTarget('');
-    setFormInterventions(['']);
+    setFormCheckedInterventions(new Set());
+    setFormCustomInterventions(['']);
     setFormBarriers('');
     setShowGoalModal(true);
   };
@@ -74,23 +76,34 @@ export default function CarePlanTab({ patient }) {
   const handleConcernSelect = (concern) => {
     setFormConcern(concern);
     setFormDesc('');
-    setFormInterventions(['']);
+    setFormCheckedInterventions(new Set());
+    setFormCustomInterventions(['']);
   };
 
   const handleGoalSelect = (desc) => {
-    const lib = carePlanLibrary.find(c => c.healthConcern === formConcern);
-    const goal = lib?.goals.find(g => g.description === desc);
     setFormDesc(desc);
-    if (goal) setFormInterventions([...goal.interventions]);
+    setFormCheckedInterventions(new Set());
+  };
+
+  const toggleIntervention = (iv) => {
+    setFormCheckedInterventions(prev => {
+      const next = new Set(prev);
+      next.has(iv) ? next.delete(iv) : next.add(iv);
+      return next;
+    });
   };
 
   const saveGoal = () => {
+    const allInterventions = [
+      ...Array.from(formCheckedInterventions),
+      ...formCustomInterventions.filter(i => i.trim()),
+    ];
     addPatientEntry(patient.id, 'carePlanGoals', {
       healthConcern: formConcern,
       description: formDesc,
       status: formStatus,
       targetDate: formTarget,
-      interventions: formInterventions.filter(i => i.trim()),
+      interventions: allInterventions,
       barriers: formBarriers,
     });
     setSaveCount(c => c + 1);
@@ -315,20 +328,40 @@ export default function CarePlanTab({ patient }) {
             </div>
 
             <div className="bg-surface-alt rounded-lg p-3 border border-border-light">
-              <label className="text-[10px] font-semibold text-text-secondary mb-1 block flex items-center gap-1">
+              <label className="text-[10px] font-semibold text-text-secondary mb-2 block flex items-center gap-1">
                 <span className="w-4 h-4 bg-accent-100 text-accent-700 rounded text-[9px] font-bold flex items-center justify-center">I</span>
                 Interventions
               </label>
+
+              {/* Library interventions as checkboxes */}
+              {selectedLib && formDesc && (() => {
+                const goal = selectedLib.goals.find(g => g.description === formDesc);
+                if (!goal) return null;
+                return (
+                  <div className="space-y-1.5 mb-3">
+                    <p className="text-[10px] text-text-muted font-medium">Select from library:</p>
+                    {goal.interventions.map((iv, i) => (
+                      <label key={i} className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-all text-xs ${formCheckedInterventions.has(iv) ? 'bg-accent-50 border border-accent-200' : 'bg-white border border-border-light hover:bg-surface-hover'}`}>
+                        <input type="checkbox" checked={formCheckedInterventions.has(iv)} onChange={() => toggleIntervention(iv)} className="accent-accent-600 mt-0.5 shrink-0" />
+                        <span className="text-text-secondary">{iv}</span>
+                      </label>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Custom interventions */}
+              <p className="text-[10px] text-text-muted font-medium mb-1.5">Add custom:</p>
               <div className="space-y-1.5">
-                {formInterventions.map((iv, idx) => (
+                {formCustomInterventions.map((iv, idx) => (
                   <div key={idx} className="flex gap-1.5">
-                    <input type="text" className="input-field py-1.5 text-xs flex-1" placeholder={`Intervention ${idx + 1}...`} value={iv} onChange={e => { const u = [...formInterventions]; u[idx] = e.target.value; setFormInterventions(u); }} />
-                    {formInterventions.length > 1 && (
-                      <button onClick={() => { const u = [...formInterventions]; u.splice(idx, 1); setFormInterventions(u); }} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
+                    <input type="text" className="input-field py-1.5 text-xs flex-1" placeholder={`Custom intervention...`} value={iv} onChange={e => { const u = [...formCustomInterventions]; u[idx] = e.target.value; setFormCustomInterventions(u); }} />
+                    {formCustomInterventions.length > 1 && (
+                      <button onClick={() => { const u = [...formCustomInterventions]; u.splice(idx, 1); setFormCustomInterventions(u); }} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
                     )}
                   </div>
                 ))}
-                <button onClick={() => setFormInterventions([...formInterventions, ''])} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer"><PlusIcon className="w-3 h-3" /> Add intervention</button>
+                <button onClick={() => setFormCustomInterventions([...formCustomInterventions, ''])} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer"><PlusIcon className="w-3 h-3" /> Add custom intervention</button>
               </div>
             </div>
 
