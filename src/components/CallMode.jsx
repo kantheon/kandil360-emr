@@ -361,7 +361,32 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
     const entry = entries.find(e=>e.id===id);
     if(entry) {
       const typeMap = { note:'progressNotes', comm:'communications', assessment:'assessments', appointment:'appointments', goal:'carePlanGoals' };
-      addPatientEntry(patient.id, typeMap[entry.type] || entry.type, entry.data);
+      let dataToSave = entry.data;
+      // Enrich assessment data so it is compatible with AssessmentsTab edit flow
+      if (entry.type === 'assessment' && dataToSave.templateId) {
+        const tpl = assessmentTemplates.find(t => t.id === dataToSave.templateId);
+        if (tpl) {
+          const answers = dataToSave.answers || {};
+          const total = tpl.questions.reduce((s, q) => s + (answers[q.id] ?? 0), 0);
+          const allDone = tpl.questions.every(q => answers[q.id] !== undefined);
+          const range = tpl.scoring.method === 'sum' ? tpl.scoring.ranges.find(r => total >= r.min && total <= r.max) : null;
+          const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+          dataToSave = {
+            ...dataToSave,
+            templateName: tpl.name,
+            score: total,
+            result: range ? range.label : (allDone ? 'See sections' : 'Incomplete'),
+            type: tpl.name,
+            date: today,
+            author: 'Current User',
+            status: allDone ? 'Completed' : 'In Progress',
+            summary: `${tpl.name}: Score ${total}${range ? ' - ' + range.label : ''}`,
+            phq2Score: null, fallRisk: null, painLevel: null,
+            cognitiveStatus: null, functionalStatus: null, sdoh: null,
+          };
+        }
+      }
+      addPatientEntry(patient.id, typeMap[entry.type] || entry.type, dataToSave);
     }
     setEntries(p=>p.map(e=>e.id===id?{...e,saved:true,savedAt:new Date().toLocaleTimeString()}:e));
     setExpandedEntries(p=>{const n=new Set(p);n.delete(id);return n;});

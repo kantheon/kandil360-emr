@@ -343,6 +343,19 @@ export default function VitalsTab({ patient }) {
     };
 
     if (editingEntry) {
+      // Track which fields changed for audit trail
+      const vitalFields = ['systolic', 'diastolic', 'heartRate', 'temperature', 'oxygenSaturation', 'respiratoryRate', 'weight', 'painLevel', 'notes'];
+      const fieldsChanged = vitalFields.filter(f => {
+        const oldVal = editingEntry[f];
+        const newVal = entryData[f];
+        if (oldVal == null && newVal == null) return false;
+        return oldVal !== newVal;
+      });
+      if (fieldsChanged.length > 0) {
+        entryData.wasEdited = true;
+        entryData.editedAt = new Date().toISOString();
+        entryData.editedBy = 'Current User';
+      }
       updateEntry(patient.id, 'vitals', editingEntry.id, entryData);
     } else {
       addEntry(patient.id, 'vitals', entryData);
@@ -833,6 +846,9 @@ export default function VitalsTab({ patient }) {
                               ? 'Attention'
                               : 'Normal'}
                         </span>
+                        {entry.wasEdited && (
+                          <span className="badge badge-info text-[10px]">Edited</span>
+                        )}
                       </div>
                       <p className="text-[11px] text-text-muted mt-0.5">
                         {entry.author && `${entry.author} \u00B7 `}
@@ -934,6 +950,26 @@ export default function VitalsTab({ patient }) {
                           </h4>
                           <p className="text-xs text-text-secondary leading-relaxed">
                             {entry.notes}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Edit audit note */}
+                      {entry.wasEdited && entry.editedAt && (
+                        <div className="mt-3 pt-3 border-t border-border-light">
+                          <p className="text-[10px] text-text-muted flex items-center gap-1.5">
+                            <PencilSquareIcon className="w-3 h-3 text-primary-400" />
+                            Edited by {entry.editedBy || 'Unknown'} on{' '}
+                            {new Date(entry.editedAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}{' '}
+                            at{' '}
+                            {new Date(entry.editedAt).toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
                           </p>
                         </div>
                       )}

@@ -12,7 +12,9 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   CheckCircleIcon,
-  TrashIcon
+  TrashIcon,
+  PencilSquareIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { assessmentTemplates } from '../../data/assessmentTemplates';
 import { useData } from '../../contexts/DataContext';
@@ -41,12 +43,13 @@ function getScoreResult(template, answers) {
 }
 
 export default function AssessmentsTab({ patient }) {
-  const { addEntry, deleteEntry, isEditable } = useData();
+  const { addEntry, updateEntry, deleteEntry, isEditable } = useData();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [formAnswers, setFormAnswers] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editingAssessment, setEditingAssessment] = useState(null);
 
   const allAssessments = patient.assessments;
 
@@ -60,32 +63,74 @@ export default function AssessmentsTab({ patient }) {
     });
   };
 
+  const handleEditAssessment = (assessment) => {
+    const template = assessmentTemplates.find(
+      t => t.id === assessment.templateId || t.name === assessment.templateName || t.name === assessment.type
+    );
+    if (!template) return;
+    setEditingAssessment(assessment);
+    setSelectedTemplate(template);
+    setFormAnswers(assessment.answers ? { ...assessment.answers } : {});
+    setShowForm(true);
+  };
+
   const handleSaveAssessment = () => {
     if (!selectedTemplate || !allAnswered) return;
     const result = getScoreResult(selectedTemplate, formAnswers);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    const entry = {
-      templateId: selectedTemplate.id,
-      templateName: selectedTemplate.name,
-      answers: formAnswers,
-      score: result.total,
-      result: result.label,
-      type: selectedTemplate.name,
-      date: today,
-      author: 'Current User',
-      status: 'Completed',
-      summary: `${selectedTemplate.name}: Score ${result.total} - ${result.label}`,
-      phq2Score: null,
-      fallRisk: null,
-      painLevel: null,
-      cognitiveStatus: null,
-      functionalStatus: null,
-      sdoh: null,
-    };
-    addEntry(patient.id, 'assessments', entry);
+
+    if (editingAssessment) {
+      // Build edit history entry
+      const oldAnswers = editingAssessment.answers || {};
+      const fieldsChanged = selectedTemplate.questions
+        .filter(q => oldAnswers[q.id] !== formAnswers[q.id])
+        .map(q => q.id);
+      const changes = {};
+      fieldsChanged.forEach(qId => {
+        changes[qId] = { oldValue: oldAnswers[qId] ?? null, newValue: formAnswers[qId] };
+      });
+      const historyEntry = {
+        editedAt: new Date().toISOString(),
+        editedBy: 'Current User',
+        fieldsChanged,
+        changes,
+        previousScore: editingAssessment.score,
+        newScore: result.total,
+      };
+      const existingHistory = editingAssessment.editHistory || [];
+      const updatedData = {
+        answers: formAnswers,
+        score: result.total,
+        result: result.label,
+        summary: `${selectedTemplate.name}: Score ${result.total} - ${result.label}`,
+        editHistory: [...existingHistory, historyEntry],
+      };
+      updateEntry(patient.id, 'assessments', editingAssessment.id, updatedData);
+    } else {
+      const entry = {
+        templateId: selectedTemplate.id,
+        templateName: selectedTemplate.name,
+        answers: formAnswers,
+        score: result.total,
+        result: result.label,
+        type: selectedTemplate.name,
+        date: today,
+        author: 'Current User',
+        status: 'Completed',
+        summary: `${selectedTemplate.name}: Score ${result.total} - ${result.label}`,
+        phq2Score: null,
+        fallRisk: null,
+        painLevel: null,
+        cognitiveStatus: null,
+        functionalStatus: null,
+        sdoh: null,
+      };
+      addEntry(patient.id, 'assessments', entry);
+    }
     setShowForm(false);
     setSelectedTemplate(null);
     setFormAnswers({});
+    setEditingAssessment(null);
   };
 
   const handleDelete = () => {
@@ -102,6 +147,7 @@ export default function AssessmentsTab({ patient }) {
   });
 
   const startAssessment = (template) => {
+    setEditingAssessment(null);
     setSelectedTemplate(template);
     setFormAnswers({});
   };
@@ -123,7 +169,7 @@ export default function AssessmentsTab({ patient }) {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input type="text" placeholder="Search assessments..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-9 py-2 text-xs" />
           </div>
-          <button onClick={() => { setShowForm(true); setSelectedTemplate(null); }} className="btn-primary py-2 flex items-center gap-1.5">
+          <button onClick={() => { setShowForm(true); setSelectedTemplate(null); setEditingAssessment(null); }} className="btn-primary py-2 flex items-center gap-1.5">
             <PlusIcon className="w-4 h-4" />
             <span className="hidden sm:inline">New Assessment</span>
           </button>
@@ -131,8 +177,8 @@ export default function AssessmentsTab({ patient }) {
       </div>
 
       {/* Modal - Template Picker or Form */}
-      <Modal open={showForm} onClose={() => { setShowForm(false); setSelectedTemplate(null); }} title={selectedTemplate ? selectedTemplate.name : 'New Assessment'} wide
-        footer={selectedTemplate ? <div className="flex justify-end gap-2"><button onClick={() => { setShowForm(false); setSelectedTemplate(null); }} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSaveAssessment} disabled={!allAnswered} className={`btn-primary py-2 text-xs ${!allAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}><CheckCircleIcon className="w-4 h-4 inline mr-1" />Save Assessment</button></div> : null}>
+      <Modal open={showForm} onClose={() => { setShowForm(false); setSelectedTemplate(null); setEditingAssessment(null); }} title={selectedTemplate ? (editingAssessment ? `Edit Assessment - ${selectedTemplate.name}` : selectedTemplate.name) : 'New Assessment'} wide
+        footer={selectedTemplate ? <div className="flex justify-end gap-2"><button onClick={() => { setShowForm(false); setSelectedTemplate(null); setEditingAssessment(null); }} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSaveAssessment} disabled={!allAnswered} className={`btn-primary py-2 text-xs ${!allAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}><CheckCircleIcon className="w-4 h-4 inline mr-1" />{editingAssessment ? 'Update Assessment' : 'Save Assessment'}</button></div> : null}>
         {!selectedTemplate ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {assessmentTemplates.map((template) => (
@@ -148,7 +194,7 @@ export default function AssessmentsTab({ patient }) {
           </div>
         ) : (
           <>
-            <button onClick={() => setSelectedTemplate(null)} className="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer mb-4">&larr; Change assessment type</button>
+            {!editingAssessment && <button onClick={() => setSelectedTemplate(null)} className="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer mb-4">&larr; Change assessment type</button>}
             <div className="space-y-4">
               {selectedTemplate.questions.map((q, idx) => (
                 <div key={q.id} className="bg-surface-alt rounded-xl p-4 border border-border-light">
@@ -209,6 +255,11 @@ export default function AssessmentsTab({ patient }) {
                   </div>
                   <p className="text-xs text-text-muted mt-0.5">{assessment.author} &middot; {assessment.date}</p>
                 </div>
+                {editable && assessment.answers && (
+                  <span onClick={e => { e.stopPropagation(); handleEditAssessment(assessment); }} className="p-1.5 rounded-lg hover:bg-primary-100 text-text-muted hover:text-primary-500 cursor-pointer transition-colors shrink-0" title="Edit assessment">
+                    <PencilSquareIcon className="w-3.5 h-3.5" />
+                  </span>
+                )}
                 {editable && (
                   <span onClick={e => { e.stopPropagation(); setDeleteTarget(assessment); }} className="p-1.5 rounded-lg hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer transition-colors shrink-0">
                     <TrashIcon className="w-3.5 h-3.5" />
@@ -272,6 +323,52 @@ export default function AssessmentsTab({ patient }) {
                     <div className="mt-3 pt-3 border-t border-border-light">
                       <h4 className="text-[11px] font-semibold text-text-primary mb-1">Summary</h4>
                       <p className="text-xs text-text-secondary leading-relaxed">{assessment.summary}</p>
+                    </div>
+                  )}
+
+                  {/* Edit History */}
+                  {assessment.editHistory && assessment.editHistory.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border-light">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <ClockIcon className="w-3.5 h-3.5 text-text-muted" />
+                        <h4 className="text-[11px] font-semibold text-text-primary">Edit History</h4>
+                        <span className="badge badge-neutral text-[9px]">{assessment.editHistory.length}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {assessment.editHistory.map((edit, idx) => {
+                          const editDate = new Date(edit.editedAt);
+                          const matchingTemplate = assessmentTemplates.find(
+                            t => t.id === assessment.templateId || t.name === assessment.templateName
+                          );
+                          return (
+                            <div key={idx} className="bg-surface-alt rounded-lg p-2.5 border border-border-light">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-medium text-text-secondary">
+                                  {edit.editedBy} &middot; {editDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} {editDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                {edit.previousScore !== edit.newScore && (
+                                  <span className="text-[10px] font-semibold text-primary-600">
+                                    Score: {edit.previousScore} &rarr; {edit.newScore}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {edit.fieldsChanged.map(qId => {
+                                  const q = matchingTemplate?.questions.find(x => x.id === qId);
+                                  const change = edit.changes[qId];
+                                  const oldLabel = q?.options.find(o => o.value === change?.oldValue)?.label;
+                                  const newLabel = q?.options.find(o => o.value === change?.newValue)?.label;
+                                  return (
+                                    <span key={qId} className="text-[10px] text-text-muted bg-white rounded px-1.5 py-0.5 border border-border-light" title={`${oldLabel || change?.oldValue} -> ${newLabel || change?.newValue}`}>
+                                      {q ? q.text.slice(0, 30) + (q.text.length > 30 ? '...' : '') : qId}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
