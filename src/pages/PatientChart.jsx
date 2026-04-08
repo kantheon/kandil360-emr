@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { patients } from '../data/seedData';
 import {
   ArrowLeftIcon,
-  ExclamationTriangleIcon,
   ShieldExclamationIcon,
   PhoneIcon,
 } from '@heroicons/react/24/outline';
@@ -18,13 +17,13 @@ import MedicationsTab from '../components/chart/MedicationsTab';
 
 const tabs = [
   { id: 'overview', label: 'Overview' },
-  { id: 'notes', label: 'Progress Notes' },
-  { id: 'communications', label: 'Communications' },
-  { id: 'appointments', label: 'Appointments' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'communications', label: 'Comms' },
+  { id: 'appointments', label: 'Appts' },
   { id: 'admissions', label: 'Admissions' },
   { id: 'assessments', label: 'Assessments' },
   { id: 'careplan', label: 'Care Plan' },
-  { id: 'medications', label: 'Medications' },
+  { id: 'medications', label: 'Meds' },
 ];
 
 const riskColors = {
@@ -64,118 +63,112 @@ export default function PatientChart() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-0 animate-fade-in">
-      {/* Back button */}
-      <Link to="/patients" className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-primary-600 font-medium mb-4 transition-colors">
-        <ArrowLeftIcon className="w-4 h-4" />
-        Back to Patients
-      </Link>
-
-      {/* Patient Banner - Always Visible */}
-      <div className="card p-0 overflow-hidden mb-6">
-        {/* Allergy alert strip */}
+    <div className="max-w-7xl mx-auto animate-fade-in -mt-4 lg:-mt-6 -mx-4 lg:-mx-6">
+      {/* STICKY PATIENT HEADER - never scrolls away */}
+      <div className="sticky top-14 z-20 bg-white border-b border-border-light shadow-sm">
+        {/* Allergy strip */}
         {patient.allergies.length > 0 && (
-          <div className="bg-danger-50 border-b border-danger-100 px-6 py-2 flex items-center gap-2">
-            <ShieldExclamationIcon className="w-4 h-4 text-danger-500 shrink-0" />
-            <span className="text-xs font-semibold text-danger-600">ALLERGIES:</span>
-            <span className="text-xs text-danger-600">
-              {patient.allergies.map(a => `${a.allergen} (${a.reaction} - ${a.severity})`).join(' | ')}
+          <div className="bg-danger-50 border-b border-danger-100 px-4 lg:px-6 py-1.5 flex items-center gap-2 overflow-x-auto">
+            <ShieldExclamationIcon className="w-3.5 h-3.5 text-danger-500 shrink-0" />
+            <span className="text-[11px] font-bold text-danger-600 shrink-0">ALLERGIES:</span>
+            <span className="text-[11px] text-danger-600 whitespace-nowrap">
+              {patient.allergies.map(a => `${a.allergen} (${a.reaction})`).join(' | ')}
             </span>
           </div>
         )}
 
-        <div className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6">
-            {/* Avatar & Name */}
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/20">
-                {patient.firstName[0]}{patient.lastName[0]}
+        {/* Patient banner */}
+        <div className="px-4 lg:px-6 py-3">
+          <div className="flex items-center gap-3 lg:gap-4">
+            {/* Back */}
+            <Link to="/patients" className="p-1.5 -ml-1.5 rounded-lg text-text-muted hover:text-primary-600 hover:bg-primary-50 transition-colors shrink-0">
+              <ArrowLeftIcon className="w-4 h-4" />
+            </Link>
+
+            {/* Avatar */}
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm lg:text-base shadow-md shadow-primary-500/20 shrink-0">
+              {patient.firstName[0]}{patient.lastName[0]}
+            </div>
+
+            {/* Name + key info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-base lg:text-lg font-bold text-text-primary whitespace-nowrap">
+                  {patient.lastName}, {patient.firstName}
+                </h1>
+                <span className={`badge border text-[11px] ${riskColors[patient.riskLevel]}`}>
+                  {patient.riskLevel}
+                </span>
               </div>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-bold text-text-primary">
-                    {patient.lastName}, {patient.firstName}
-                  </h1>
-                  <span className={`badge border ${riskColors[patient.riskLevel]}`}>
-                    {patient.riskLevel} Risk
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-text-secondary">
-                  <span className="font-medium">{patient.id}</span>
-                  <span className="text-text-muted">|</span>
-                  <span>MRN: {patient.mrn}</span>
-                  <span className="text-text-muted">|</span>
-                  <span>DOB: {new Date(patient.dob).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} ({patient.age}y)</span>
-                  <span className="text-text-muted">|</span>
-                  <span>{patient.sex}</span>
-                  <span className="text-text-muted">|</span>
-                  <span>{patient.language}</span>
-                </div>
+              <div className="flex items-center gap-2 text-xs text-text-muted mt-0.5 overflow-x-auto">
+                <span className="font-medium text-text-secondary">{patient.id}</span>
+                <span className="hidden sm:inline">|</span>
+                <span className="hidden sm:inline">{patient.mrn}</span>
+                <span className="hidden sm:inline">|</span>
+                <span className="hidden sm:inline">DOB: {new Date(patient.dob).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} ({patient.age}y {patient.sex[0]})</span>
+                <span className="hidden md:inline">|</span>
+                <span className="hidden md:inline">{patient.language}</span>
               </div>
             </div>
 
-            {/* Quick Info */}
-            <div className="lg:ml-auto flex flex-wrap gap-4">
-              <div className="bg-surface-alt rounded-xl px-4 py-2.5 min-w-[140px]">
-                <p className="text-[11px] text-text-muted font-medium uppercase tracking-wider">Insurance</p>
-                <p className="text-xs font-semibold text-text-primary mt-0.5 leading-snug">{patient.insurance.plan.split(' - ')[0]}</p>
-                <p className="text-[11px] text-text-muted">{patient.insurance.memberId}</p>
+            {/* Quick info pills - desktop only */}
+            <div className="hidden xl:flex items-center gap-3">
+              <div className="bg-surface-alt rounded-lg px-3 py-1.5 text-center">
+                <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider leading-none">PCP</p>
+                <p className="text-xs font-semibold text-text-primary mt-0.5 whitespace-nowrap">{patient.pcp}</p>
               </div>
-              <div className="bg-surface-alt rounded-xl px-4 py-2.5 min-w-[140px]">
-                <p className="text-[11px] text-text-muted font-medium uppercase tracking-wider">PCP</p>
-                <p className="text-xs font-semibold text-text-primary mt-0.5">{patient.pcp}</p>
+              <div className="bg-surface-alt rounded-lg px-3 py-1.5 text-center">
+                <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider leading-none">Insurance</p>
+                <p className="text-xs font-semibold text-text-primary mt-0.5 whitespace-nowrap">{patient.insurance.plan.split(' - ')[0]}</p>
               </div>
-              <div className="bg-surface-alt rounded-xl px-4 py-2.5 min-w-[140px]">
-                <p className="text-[11px] text-text-muted font-medium uppercase tracking-wider">Case Manager</p>
-                <p className="text-xs font-semibold text-text-primary mt-0.5">{patient.caseInfo.assignedCM}</p>
-                <p className="text-[11px] text-text-muted">{patient.caseInfo.program}</p>
+              <div className="bg-surface-alt rounded-lg px-3 py-1.5 text-center">
+                <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider leading-none">Program</p>
+                <p className="text-xs font-semibold text-text-primary mt-0.5 whitespace-nowrap">{patient.caseInfo.program}</p>
               </div>
             </div>
-          </div>
 
-          {/* Contact strip */}
-          <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-border-light text-xs text-text-secondary">
-            <span className="flex items-center gap-1.5">
-              <PhoneIcon className="w-3.5 h-3.5 text-text-muted" />
-              {patient.phone}
-            </span>
-            {patient.email && (
-              <span className="text-text-muted">{patient.email}</span>
-            )}
-            <span className="text-text-muted">{patient.address}</span>
-            <span className="ml-auto text-text-muted">
-              Emergency: {patient.emergencyContact.name} ({patient.emergencyContact.relation}) - {patient.emergencyContact.phone}
-            </span>
+            {/* Phone quick action */}
+            <a href={`tel:${patient.phone}`} className="hidden sm:flex items-center gap-1.5 bg-accent-50 text-accent-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-accent-100 transition-colors shrink-0">
+              <PhoneIcon className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">{patient.phone}</span>
+            </a>
           </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="border-b border-border bg-white rounded-t-2xl px-2 overflow-x-auto">
-        <div className="flex gap-0 min-w-max">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-3.5 text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === tab.id
-                  ? 'tab-active'
-                  : 'tab-inactive'
-              }`}
-            >
-              {tab.label}
-              {tab.id === 'notes' && patient.progressNotes.length > 0 && (
-                <span className="ml-1.5 bg-primary-100 text-primary-700 text-[11px] font-bold px-1.5 py-0.5 rounded-md">
-                  {patient.progressNotes.length}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* Tabs */}
+        <div className="px-2 lg:px-4 overflow-x-auto -mb-px">
+          <div className="flex gap-0 min-w-max">
+            {tabs.map((tab) => {
+              const count = tab.id === 'notes' ? patient.progressNotes.length :
+                tab.id === 'communications' ? patient.communications.length :
+                tab.id === 'admissions' ? patient.admissions.length :
+                tab.id === 'assessments' ? patient.assessments.length :
+                tab.id === 'appointments' ? patient.appointments.length : 0;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3.5 lg:px-5 py-3 text-xs lg:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
+                    activeTab === tab.id ? 'tab-active' : 'tab-inactive'
+                  }`}
+                >
+                  {tab.label}
+                  {count > 0 && (
+                    <span className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                      activeTab === tab.id ? 'bg-primary-100 text-primary-700' : 'bg-surface-alt text-text-muted'
+                    }`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white rounded-b-2xl border border-t-0 border-border-light p-6">
+      <div className="bg-white p-4 lg:p-6 min-h-[60vh]">
         {renderTab()}
       </div>
     </div>

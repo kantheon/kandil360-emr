@@ -1,10 +1,17 @@
+import { useState } from 'react';
 import {
   ClipboardDocumentCheckIcon,
   UserIcon,
   HeartIcon,
-  ShieldCheckIcon,
-  HomeIcon
+  HomeIcon,
+  PlusIcon,
+  XMarkIcon,
+  MagnifyingGlassIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
+import { assessmentTemplates } from '../../data/assessmentTemplates';
 
 const statusColors = {
   'Completed': 'badge-active',
@@ -12,120 +19,268 @@ const statusColors = {
   'Pending': 'badge-info',
 };
 
+const scoreColorMap = {
+  green: 'bg-accent-100 text-accent-700 border-accent-200',
+  yellow: 'bg-warn-100 text-[#92400e] border-warn-200',
+  orange: 'bg-warn-100 text-[#92400e] border-warn-200',
+  red: 'bg-danger-100 text-danger-600 border-danger-200',
+  blue: 'bg-primary-100 text-primary-700 border-primary-200',
+};
+
+function getScoreResult(template, answers) {
+  const total = template.questions.reduce((sum, q) => sum + (answers[q.id] ?? 0), 0);
+  if (template.scoring.method === 'sum') {
+    const range = template.scoring.ranges.find(r => total >= r.min && total <= r.max);
+    return { total, label: range?.label || 'N/A', color: range?.color || 'blue' };
+  }
+  return { total, label: 'See sections', color: 'blue' };
+}
+
 export default function AssessmentsTab({ patient }) {
+  const [search, setSearch] = useState('');
+  const [expandedAssessments, setExpandedAssessments] = useState(new Set(patient.assessments.length > 0 ? [patient.assessments[0].id] : []));
+  const [showForm, setShowForm] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [formAnswers, setFormAnswers] = useState({});
+
+  const toggleAssessment = (id) => {
+    setExpandedAssessments(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const filtered = patient.assessments.filter(a => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return [a.type, a.author, a.date, a.summary, a.functionalStatus, a.cognitiveStatus].filter(Boolean).join(' ').toLowerCase().includes(q);
+  });
+
+  const startAssessment = (template) => {
+    setSelectedTemplate(template);
+    setFormAnswers({});
+  };
+
+  const handleAnswer = (questionId, value) => {
+    setFormAnswers(prev => ({ ...prev, [questionId]: Number(value) }));
+  };
+
+  const allAnswered = selectedTemplate?.questions.every(q => formAnswers[q.id] !== undefined);
+  const currentResult = selectedTemplate ? getScoreResult(selectedTemplate, formAnswers) : null;
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
+    <div className="space-y-4 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-text-primary">Assessments</h2>
-        <p className="text-xs text-text-muted mt-0.5">{patient.assessments.length} assessments on file</p>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 sm:w-64">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            <input type="text" placeholder="Search assessments..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-9 py-2 text-xs" />
+          </div>
+          <button onClick={() => { setShowForm(!showForm); setSelectedTemplate(null); }} className="btn-primary py-2 flex items-center gap-1.5">
+            <PlusIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">New Assessment</span>
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-5">
-        {patient.assessments.map((assessment) => (
-          <div key={assessment.id} className="card p-0 overflow-hidden">
-            {/* Header */}
-            <div className="bg-surface-alt px-6 py-4 border-b border-border-light">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
-                    <ClipboardDocumentCheckIcon className="w-5 h-5 text-primary-600" />
+      {/* New Assessment - Template Picker */}
+      {showForm && !selectedTemplate && (
+        <div className="card p-5 border-primary-200 bg-primary-50/30 animate-fade-in">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-text-primary">Select Assessment Type</h3>
+            <button onClick={() => setShowForm(false)} className="p-1 rounded-lg hover:bg-surface-hover cursor-pointer">
+              <XMarkIcon className="w-4 h-4 text-text-muted" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {assessmentTemplates.map((template) => (
+              <button
+                key={template.id}
+                onClick={() => startAssessment(template)}
+                className="text-left card card-hover p-4 cursor-pointer border border-border-light"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                    <ClipboardDocumentCheckIcon className="w-4 h-4 text-primary-600" />
                   </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-text-primary">{assessment.type}</h3>
-                    <p className="text-xs text-text-muted">{assessment.author} &middot; {assessment.date}</p>
-                  </div>
+                  <span className="badge badge-neutral text-[10px]">{template.category}</span>
                 </div>
-                <span className={`badge ${statusColors[assessment.status] || 'badge-neutral'}`}>
-                  {assessment.status}
-                </span>
+                <h4 className="text-sm font-semibold text-text-primary">{template.name}</h4>
+                <p className="text-xs text-text-muted mt-1">{template.questions.length} questions</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Assessment Form */}
+      {showForm && selectedTemplate && (
+        <div className="card p-5 border-primary-200 bg-primary-50/30 animate-fade-in">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setSelectedTemplate(null)} className="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer">&larr; Back</button>
+            </div>
+            <button onClick={() => { setShowForm(false); setSelectedTemplate(null); }} className="p-1 rounded-lg hover:bg-surface-hover cursor-pointer">
+              <XMarkIcon className="w-4 h-4 text-text-muted" />
+            </button>
+          </div>
+          <h3 className="text-base font-semibold text-text-primary mb-1">{selectedTemplate.name}</h3>
+          <p className="text-xs text-text-muted mb-5">{selectedTemplate.category} &middot; {selectedTemplate.questions.length} questions</p>
+
+          {/* Questions */}
+          <div className="space-y-4">
+            {selectedTemplate.questions.map((q, idx) => (
+              <div key={q.id} className="bg-white rounded-xl p-4 border border-border-light">
+                <label className="text-xs font-semibold text-text-primary mb-2 flex items-center gap-2">
+                  <span className="w-5 h-5 bg-primary-100 text-primary-700 rounded-md flex items-center justify-center text-[10px] font-bold">{idx + 1}</span>
+                  {q.text}
+                </label>
+                <div className="mt-2 space-y-1.5">
+                  {q.options.map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs ${
+                        formAnswers[q.id] === opt.value
+                          ? 'bg-primary-50 border border-primary-300 text-primary-700 font-medium'
+                          : 'bg-surface-alt border border-transparent hover:bg-surface-hover text-text-secondary'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={q.id}
+                        value={opt.value}
+                        checked={formAnswers[q.id] === opt.value}
+                        onChange={() => handleAnswer(q.id, opt.value)}
+                        className="accent-primary-600"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Live Score */}
+          {currentResult && Object.keys(formAnswers).length > 0 && (
+            <div className={`mt-5 p-4 rounded-xl border ${scoreColorMap[currentResult.color] || 'bg-surface-alt text-text-primary border-border'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium opacity-75">Current Score</p>
+                  <p className="text-lg font-bold">{currentResult.total}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-medium opacity-75">Result</p>
+                  <p className="text-sm font-bold">{allAnswered ? currentResult.label : 'Complete all questions...'}</p>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Body */}
-            <div className="p-6">
-              {/* Clinical Scores Row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-                {[
-                  {
-                    label: 'PHQ-2 Score',
-                    value: assessment.phq2Score !== null ? `${assessment.phq2Score}/6` : 'N/A',
-                    color: assessment.phq2Score >= 3 ? 'text-danger-500' : assessment.phq2Score !== null ? 'text-accent-600' : 'text-text-muted'
-                  },
-                  {
-                    label: 'Fall Risk',
-                    value: assessment.fallRisk,
-                    color: assessment.fallRisk === 'High' ? 'text-danger-500' : assessment.fallRisk === 'Moderate' ? 'text-warn-500' : 'text-accent-600'
-                  },
-                  {
-                    label: 'Pain Level',
-                    value: assessment.painLevel,
-                    color: 'text-text-primary'
-                  },
-                  {
-                    label: 'Cognitive Status',
-                    value: assessment.cognitiveStatus?.split(',')[0] || 'N/A',
-                    color: 'text-text-primary'
-                  },
-                ].map((item) => (
-                  <div key={item.label} className="bg-surface-alt rounded-xl p-3 text-center">
-                    <p className="text-[11px] text-text-muted font-medium uppercase tracking-wider">{item.label}</p>
-                    <p className={`text-sm font-bold mt-1 ${item.color}`}>{item.value}</p>
-                  </div>
-                ))}
-              </div>
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={() => { setShowForm(false); setSelectedTemplate(null); }} className="btn-secondary py-2 text-xs">Cancel</button>
+            <button disabled={!allAnswered} className={`btn-primary py-2 text-xs ${!allAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <CheckCircleIcon className="w-4 h-4 inline mr-1" />
+              Save Assessment
+            </button>
+          </div>
+        </div>
+      )}
 
-              {/* Detailed Sections */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Functional Status */}
-                <div className="bg-surface-alt rounded-xl p-4 border border-border-light">
-                  <div className="flex items-center gap-2 mb-2">
-                    <HeartIcon className="w-4 h-4 text-danger-400" />
-                    <h4 className="text-xs font-semibold text-text-primary">Functional Status</h4>
-                  </div>
-                  <p className="text-sm text-text-secondary leading-relaxed">{assessment.functionalStatus}</p>
+      {/* Existing Assessments - Collapsible */}
+      <div className="space-y-2">
+        {filtered.map((assessment) => {
+          const isOpen = expandedAssessments.has(assessment.id);
+          return (
+            <div key={assessment.id} className="card p-0 overflow-hidden">
+              <button
+                onClick={() => toggleAssessment(assessment.id)}
+                className="w-full flex items-center gap-3 px-4 lg:px-5 py-3 bg-surface-alt hover:bg-surface-hover transition-colors cursor-pointer text-left"
+              >
+                <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
+                  <ClipboardDocumentCheckIcon className="w-4 h-4 text-primary-600" />
                 </div>
-
-                {/* Cognitive */}
-                <div className="bg-surface-alt rounded-xl p-4 border border-border-light">
-                  <div className="flex items-center gap-2 mb-2">
-                    <UserIcon className="w-4 h-4 text-primary-500" />
-                    <h4 className="text-xs font-semibold text-text-primary">Cognitive Status</h4>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-text-primary">{assessment.type}</span>
+                    <span className={`badge ${statusColors[assessment.status] || 'badge-neutral'} text-[10px]`}>{assessment.status}</span>
                   </div>
-                  <p className="text-sm text-text-secondary leading-relaxed">{assessment.cognitiveStatus}</p>
+                  <p className="text-xs text-text-muted mt-0.5">{assessment.author} &middot; {assessment.date}</p>
                 </div>
+                {isOpen ? <ChevronUpIcon className="w-4 h-4 text-text-muted shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-text-muted shrink-0" />}
+              </button>
 
-                {/* SDOH */}
-                {assessment.sdoh && (
-                  <div className="bg-surface-alt rounded-xl p-4 border border-border-light lg:col-span-2">
-                    <div className="flex items-center gap-2 mb-3">
-                      <HomeIcon className="w-4 h-4 text-accent-500" />
-                      <h4 className="text-xs font-semibold text-text-primary">Social Determinants of Health</h4>
+              {isOpen && (
+                <div className="p-4 lg:p-5 border-t border-border-light animate-fade-in">
+                  {/* Scores Row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                    {[
+                      { label: 'PHQ-2', value: assessment.phq2Score !== null ? `${assessment.phq2Score}/6` : 'N/A', color: assessment.phq2Score >= 3 ? 'text-danger-500' : 'text-accent-600' },
+                      { label: 'Fall Risk', value: assessment.fallRisk, color: assessment.fallRisk === 'High' ? 'text-danger-500' : assessment.fallRisk === 'Moderate' ? 'text-warn-500' : 'text-accent-600' },
+                      { label: 'Pain', value: assessment.painLevel, color: 'text-text-primary' },
+                      { label: 'Cognitive', value: assessment.cognitiveStatus?.split(',')[0] || 'N/A', color: 'text-text-primary' },
+                    ].map((item) => (
+                      <div key={item.label} className="bg-surface-alt rounded-lg p-2.5 text-center">
+                        <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider">{item.label}</p>
+                        <p className={`text-xs font-bold mt-0.5 ${item.color}`}>{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Detail sections */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div className="bg-surface-alt rounded-lg p-3 border border-border-light">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <HeartIcon className="w-3.5 h-3.5 text-danger-400" />
+                        <h4 className="text-[11px] font-semibold text-text-primary">Functional Status</h4>
+                      </div>
+                      <p className="text-xs text-text-secondary leading-relaxed">{assessment.functionalStatus}</p>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {Object.entries(assessment.sdoh).map(([key, value]) => (
-                        <div key={key} className="bg-white rounded-lg p-3 border border-border-light">
-                          <p className="text-[11px] text-text-muted font-medium uppercase tracking-wider capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
-                          <p className="text-xs text-text-primary font-medium mt-1">{value}</p>
+                    <div className="bg-surface-alt rounded-lg p-3 border border-border-light">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <UserIcon className="w-3.5 h-3.5 text-primary-500" />
+                        <h4 className="text-[11px] font-semibold text-text-primary">Cognitive Status</h4>
+                      </div>
+                      <p className="text-xs text-text-secondary leading-relaxed">{assessment.cognitiveStatus}</p>
+                    </div>
+                    {assessment.sdoh && (
+                      <div className="bg-surface-alt rounded-lg p-3 border border-border-light lg:col-span-2">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <HomeIcon className="w-3.5 h-3.5 text-accent-500" />
+                          <h4 className="text-[11px] font-semibold text-text-primary">SDOH</h4>
                         </div>
-                      ))}
-                    </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {Object.entries(assessment.sdoh).map(([key, value]) => (
+                            <div key={key} className="bg-white rounded-md p-2 border border-border-light">
+                              <p className="text-[10px] text-text-muted font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                              <p className="text-[11px] text-text-primary font-medium mt-0.5">{value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Summary */}
-              {assessment.summary && (
-                <div className="mt-4 pt-4 border-t border-border-light">
-                  <h4 className="text-xs font-semibold text-text-primary mb-2">Assessment Summary</h4>
-                  <p className="text-sm text-text-secondary leading-relaxed">{assessment.summary}</p>
+                  {assessment.summary && (
+                    <div className="mt-3 pt-3 border-t border-border-light">
+                      <h4 className="text-[11px] font-semibold text-text-primary mb-1">Summary</h4>
+                      <p className="text-xs text-text-secondary leading-relaxed">{assessment.summary}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {patient.assessments.length === 0 && (
+      {filtered.length === 0 && patient.assessments.length > 0 && (
+        <div className="text-center py-8"><p className="text-sm text-text-muted">No results for "{search}"</p></div>
+      )}
+      {patient.assessments.length === 0 && !showForm && (
         <div className="text-center py-12">
           <ClipboardDocumentCheckIcon className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
           <p className="text-sm text-text-muted">No assessments on file</p>
