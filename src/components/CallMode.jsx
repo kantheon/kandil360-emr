@@ -29,7 +29,14 @@ function getEntryTitle(entry) {
     return t ? t.name : 'Assessment';
   }
   if (entry.type === 'appointment') return entry.data.type || 'New Appointment';
-  if (entry.type === 'goal') return entry.data.description ? entry.data.description.slice(0, 40) + (entry.data.description.length > 40 ? '...' : '') : 'New Goal';
+  if (entry.type === 'goal') {
+    const hc = entry.data.healthConcern;
+    const desc = entry.data.description;
+    if (hc && desc) return `${hc.slice(0,25)}${hc.length>25?'...':''} → ${desc.slice(0,25)}${desc.length>25?'...':''}`;
+    if (hc) return hc.slice(0,50) + (hc.length>50?'...':'');
+    if (desc) return desc.slice(0,50) + (desc.length>50?'...':'');
+    return 'New Care Plan Entry';
+  }
   return 'Entry';
 }
 
@@ -141,25 +148,94 @@ function AppointmentForm({ entry, onChange, disabled }) {
   );
 }
 
-function GoalForm({ entry, onChange, disabled }) {
+function GoalForm({ entry, onChange, disabled, patient }) {
+  const existingGoals = patient?.carePlan?.goals || [];
+  const isExisting = entry.linkToExisting && entry.existingGoalId;
+
   return (
-    <div className="space-y-2">
-      <div>
-        <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Goal Description</label>
-        <textarea disabled={disabled} className="textarea-field text-xs !min-h-[48px] disabled:opacity-60" rows={2} placeholder="e.g. Maintain fasting BG < 130 mg/dL" value={entry.description||''} onChange={e=>onChange({...entry,description:e.target.value})} />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="space-y-3">
+      {/* Link to existing or new */}
+      {!disabled && (
+        <div className="flex gap-2">
+          <button onClick={()=>onChange({...entry,linkToExisting:false,existingGoalId:''})}
+            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${!entry.linkToExisting?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
+            New Entry
+          </button>
+          <button onClick={()=>onChange({...entry,linkToExisting:true})}
+            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${entry.linkToExisting?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
+            Add to Existing
+          </button>
+        </div>
+      )}
+
+      {/* Add to existing goal */}
+      {entry.linkToExisting && !disabled && (
         <div>
-          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Status</label>
+          <label className="text-[10px] font-medium text-text-secondary mb-1 block">Select Existing Goal</label>
+          <div className="space-y-1.5">
+            {existingGoals.map(g => (
+              <button key={g.id} onClick={()=>onChange({...entry,existingGoalId:g.id,healthConcern:g.description})}
+                className={`w-full text-left p-2 rounded-lg border text-xs transition-all cursor-pointer ${entry.existingGoalId===g.id?'bg-primary-50 border-primary-300':'border-border-light hover:bg-surface-alt'}`}>
+                <span className="font-medium text-text-primary">{g.description}</span>
+                <span className={`badge text-[9px] ml-2 ${g.status==='Met'?'badge-active':g.status==='On Track'?'badge-info':'badge-warning'}`}>{g.status}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Health Concern */}
+      <div className="bg-surface-alt rounded-lg p-3 border border-border-light">
+        <label className="text-[10px] font-semibold text-text-secondary mb-1 block flex items-center gap-1">
+          <span className="w-4 h-4 bg-danger-100 text-danger-600 rounded text-[9px] font-bold flex items-center justify-center">H</span>
+          Health Concern
+        </label>
+        <input disabled={disabled || isExisting} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="e.g. Uncontrolled Type 2 Diabetes" value={entry.healthConcern||''} onChange={e=>onChange({...entry,healthConcern:e.target.value})} />
+      </div>
+
+      {/* Goal */}
+      <div className="bg-surface-alt rounded-lg p-3 border border-border-light">
+        <label className="text-[10px] font-semibold text-text-secondary mb-1 block flex items-center gap-1">
+          <span className="w-4 h-4 bg-primary-100 text-primary-700 rounded text-[9px] font-bold flex items-center justify-center">G</span>
+          Goal
+        </label>
+        <textarea disabled={disabled} className="textarea-field text-xs !min-h-[40px] disabled:opacity-60" rows={2} placeholder="e.g. Maintain fasting BG < 130 mg/dL" value={entry.description||''} onChange={e=>onChange({...entry,description:e.target.value})} />
+        <div className="grid grid-cols-2 gap-2 mt-2">
           <select disabled={disabled} className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.status||'Not Started'} onChange={e=>onChange({...entry,status:e.target.value})}>
             {goalStatuses.map(s=><option key={s} value={s}>{s}</option>)}
           </select>
-        </div>
-        <div>
-          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Target Date</label>
-          <input disabled={disabled} type="date" className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.targetDate||''} onChange={e=>onChange({...entry,targetDate:e.target.value})} />
+          <input disabled={disabled} type="date" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="Target date" value={entry.targetDate||''} onChange={e=>onChange({...entry,targetDate:e.target.value})} />
         </div>
       </div>
+
+      {/* Interventions */}
+      <div className="bg-surface-alt rounded-lg p-3 border border-border-light">
+        <label className="text-[10px] font-semibold text-text-secondary mb-1 block flex items-center gap-1">
+          <span className="w-4 h-4 bg-accent-100 text-accent-700 rounded text-[9px] font-bold flex items-center justify-center">I</span>
+          Interventions
+        </label>
+        <div className="space-y-2">
+          {(entry.interventions || ['']).map((iv, idx) => (
+            <div key={idx} className="flex gap-1.5">
+              <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60 flex-1" placeholder={`Intervention ${idx+1}...`} value={iv} onChange={e=>{
+                const updated = [...(entry.interventions||[''])];
+                updated[idx] = e.target.value;
+                onChange({...entry, interventions: updated});
+              }} />
+              {!disabled && (entry.interventions||['']).length > 1 && (
+                <button onClick={()=>{const u=[...(entry.interventions||[''])];u.splice(idx,1);onChange({...entry,interventions:u});}} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
+              )}
+            </div>
+          ))}
+          {!disabled && (
+            <button onClick={()=>onChange({...entry,interventions:[...(entry.interventions||['']),''] })} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700">
+              <PlusIcon className="w-3 h-3" /> Add intervention
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Barriers */}
       <div>
         <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Barriers (optional)</label>
         <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="e.g. Transportation, health literacy" value={entry.barriers||''} onChange={e=>onChange({...entry,barriers:e.target.value})} />
@@ -392,7 +468,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                               {entry.type==='comm'&&<CommForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
                               {entry.type==='assessment'&&<AssessmentForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
                               {entry.type==='appointment'&&<AppointmentForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
-                              {entry.type==='goal'&&<GoalForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
+                              {entry.type==='goal'&&<GoalForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} patient={patient} />}
                               {!entry.saved&&<button onClick={()=>saveEntry(entry.id)} className="btn-primary w-full py-1.5 text-xs mt-2 flex items-center justify-center gap-1"><CheckCircleIcon className="w-3.5 h-3.5" />Save</button>}
                             </div>
                           )}
