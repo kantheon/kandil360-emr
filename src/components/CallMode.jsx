@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { assessmentTemplates } from '../data/assessmentTemplates';
 import { carePlanLibrary } from '../data/carePlanLibrary';
-import { addPatientEntry } from '../data/localStore';
+import { addPatientEntry, getPatientEntries } from '../data/localStore';
 
 /* ── Provider availability ── */
 const providerAvailability = [
