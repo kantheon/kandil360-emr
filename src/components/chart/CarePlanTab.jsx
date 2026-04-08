@@ -24,7 +24,8 @@ export default function CarePlanTab({ patient }) {
 
   // Detail modal state
   const [detailStatus, setDetailStatus] = useState('');
-  const [detailNewInterventions, setDetailNewInterventions] = useState(['']);
+  const [detailCheckedInterventions, setDetailCheckedInterventions] = useState(new Set());
+  const [detailCustomInterventions, setDetailCustomInterventions] = useState(['']);
 
   // Form state
   const [formConcern, setFormConcern] = useState('');
@@ -69,8 +70,26 @@ export default function CarePlanTab({ patient }) {
   const openGoalDetail = (goal) => {
     setSelectedGoal(goal);
     setDetailStatus(goal.status || 'Not Started');
-    setDetailNewInterventions(['']);
+    setDetailCheckedInterventions(new Set());
+    setDetailCustomInterventions(['']);
     setShowGoalModal(true);
+  };
+
+  const toggleDetailIntervention = (iv) => {
+    setDetailCheckedInterventions(prev => {
+      const n = new Set(prev); n.has(iv) ? n.delete(iv) : n.add(iv); return n;
+    });
+  };
+
+  // Find library interventions for the selected goal's health concern
+  const getLibraryInterventionsForGoal = (goal) => {
+    if (!goal) return [];
+    const lib = carePlanLibrary.find(c => c.healthConcern === goal.healthConcern);
+    if (!lib) return [];
+    // Get all interventions from all goals under this concern, deduplicated
+    const all = lib.goals.flatMap(g => g.interventions);
+    const existing = new Set(goal.interventions || []);
+    return [...new Set(all)].filter(iv => !existing.has(iv));
   };
 
   const handleConcernSelect = (concern) => {
@@ -227,7 +246,7 @@ export default function CarePlanTab({ patient }) {
                 description: selectedGoal.description,
                 status: detailStatus,
                 targetDate: selectedGoal.targetDate || '',
-                interventions: [...(selectedGoal.interventions || []), ...detailNewInterventions.filter(i => i.trim())],
+                interventions: [...(selectedGoal.interventions || []), ...Array.from(detailCheckedInterventions), ...detailCustomInterventions.filter(i => i.trim())],
                 note: 'Updated via goal detail',
               });
               setSaveCount(c => c + 1);
@@ -276,19 +295,34 @@ export default function CarePlanTab({ patient }) {
                 <p className="text-xs text-text-muted">No interventions documented</p>
               )}
             </div>
-            {/* Add new interventions */}
+            {/* Add new interventions - checkboxes from library + custom */}
             <div>
               <p className="text-xs font-semibold text-text-secondary mb-2">Add New Interventions</p>
+              {(() => {
+                const available = getLibraryInterventionsForGoal(selectedGoal);
+                return available.length > 0 ? (
+                  <div className="space-y-1.5 mb-3">
+                    <p className="text-[10px] text-text-muted font-medium">Select from library:</p>
+                    {available.map((iv, i) => (
+                      <label key={i} className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-all text-xs ${detailCheckedInterventions.has(iv) ? 'bg-accent-50 border border-accent-200' : 'bg-white border border-border-light hover:bg-surface-hover'}`}>
+                        <input type="checkbox" checked={detailCheckedInterventions.has(iv)} onChange={() => toggleDetailIntervention(iv)} className="accent-accent-600 mt-0.5 shrink-0" />
+                        <span className="text-text-secondary">{iv}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+              <p className="text-[10px] text-text-muted font-medium mb-1.5">Add custom:</p>
               <div className="space-y-1.5">
-                {detailNewInterventions.map((iv, idx) => (
+                {detailCustomInterventions.map((iv, idx) => (
                   <div key={idx} className="flex gap-1.5">
-                    <input type="text" className="input-field py-1.5 text-xs flex-1" placeholder={`New intervention...`} value={iv} onChange={e => { const u = [...detailNewInterventions]; u[idx] = e.target.value; setDetailNewInterventions(u); }} />
-                    {detailNewInterventions.length > 1 && (
-                      <button onClick={() => { const u = [...detailNewInterventions]; u.splice(idx, 1); setDetailNewInterventions(u); }} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
+                    <input type="text" className="input-field py-1.5 text-xs flex-1" placeholder="Custom intervention..." value={iv} onChange={e => { const u = [...detailCustomInterventions]; u[idx] = e.target.value; setDetailCustomInterventions(u); }} />
+                    {detailCustomInterventions.length > 1 && (
+                      <button onClick={() => { const u = [...detailCustomInterventions]; u.splice(idx, 1); setDetailCustomInterventions(u); }} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
                     )}
                   </div>
                 ))}
-                <button onClick={() => setDetailNewInterventions([...detailNewInterventions, ''])} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer"><PlusIcon className="w-3 h-3" /> Add intervention</button>
+                <button onClick={() => setDetailCustomInterventions([...detailCustomInterventions, ''])} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer"><PlusIcon className="w-3 h-3" /> Add custom intervention</button>
               </div>
             </div>
           </div>
