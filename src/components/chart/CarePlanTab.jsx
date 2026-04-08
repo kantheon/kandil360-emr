@@ -130,22 +130,61 @@ export default function CarePlanTab({ patient }) {
     return all.filter(e => e.goalId === goalId).reverse();
   };
 
-  // Intervention status tracking (stored per goal in localStorage)
-  const getIvStatuses = (goalId) => {
+  // Intervention status tracking - saved state + draft state
+  const [draftIvStatuses, setDraftIvStatuses] = useState({});
+  const [draftDirty, setDraftDirty] = useState({});
+
+  const getSavedIvStatuses = (goalId) => {
     try {
       const raw = localStorage.getItem(`k360_iv_${patient.id}_${goalId}`);
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   };
 
-  const cycleIvStatus = (goalId, ivIndex) => {
-    const statuses = getIvStatuses(goalId);
-    const current = statuses[ivIndex] || 'Not Started';
-    const nextIdx = (interventionStatuses.indexOf(current) + 1) % interventionStatuses.length;
-    statuses[ivIndex] = interventionStatuses[nextIdx];
-    localStorage.setItem(`k360_iv_${patient.id}_${goalId}`, JSON.stringify(statuses));
-    // Force re-render
-    setExpandedGoals(prev => new Set(prev));
+  const getIvStatuses = (goalId) => {
+    return draftIvStatuses[goalId] || getSavedIvStatuses(goalId);
+  };
+
+  const updateDraftIv = (goalId, index, newStatus) => {
+    setDraftIvStatuses(prev => ({
+      ...prev,
+      [goalId]: { ...(prev[goalId] || getSavedIvStatuses(goalId)), [index]: newStatus }
+    }));
+    setDraftDirty(prev => ({ ...prev, [goalId]: true }));
+  };
+
+  const saveInterventionEntry = (goal) => {
+    const draft = draftIvStatuses[goal.id] || {};
+    const saved = getSavedIvStatuses(goal.id);
+    const interventionsList = goal.interventions || [];
+    // Find what changed
+    const changes = [];
+    interventionsList.forEach((iv, i) => {
+      const oldStatus = saved[i] || 'Not Started';
+      const newStatus = draft[i] || oldStatus;
+      if (newStatus !== oldStatus) {
+        changes.push({ index: i, intervention: iv, from: oldStatus, to: newStatus });
+      }
+    });
+    // Save the draft as the new saved state
+    const merged = { ...saved, ...draft };
+    localStorage.setItem(`k360_iv_${patient.id}_${goal.id}`, JSON.stringify(merged));
+    // Create progress entry with all changes
+    const changeNotes = changes.map(c => `${c.intervention}: ${c.from} → ${c.to}`).join('\n');
+    addEntry(patient.id, 'carePlanProgress', {
+      goalId: goal.id,
+      goalDescription: goal.description,
+      healthConcern: goal.healthConcern || '',
+      status: goal.status,
+      note: changeNotes || 'Intervention statuses reviewed - no changes',
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      interventionChanges: changes,
+      allStatuses: merged,
+    });
+    // Clear draft
+    setDraftIvStatuses(prev => { const n = { ...prev }; delete n[goal.id]; return n; });
+    setDraftDirty(prev => ({ ...prev, [goal.id]: false }));
   };
 
   const toggleDetailIntervention = (iv) => {
@@ -310,11 +349,11 @@ export default function CarePlanTab({ patient }) {
                 <div className="px-4 pb-4 border-t border-border-light pt-3 animate-fade-in">
                   {interventions.length > 0 ? (
                     <div className="mb-3">
-                      <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Interventions <span className="text-text-muted font-normal">(click to update status)</span></p>
+                      <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Interventions</p>
                       <div className="space-y-1.5">
                         {interventions.map((iv, i) => {
-                          const ivStatuses = getIvStatuses(goal.id);
-                          const status = ivStatuses[i] || 'Not Started';
+                          const statuses = getIvStatuses(goal.id);
+                          const status = statuses[i] || 'Not Started';
                           const style = ivStatusStyles[status] || ivStatusStyles['Not Started'];
                           return (
                             <div key={i} className={`flex items-center gap-2 rounded-lg p-2 text-xs transition-all ${style.bg}`}>
@@ -322,27 +361,7 @@ export default function CarePlanTab({ patient }) {
                               <span className={`flex-1 ${status === 'Completed' ? 'line-through text-text-muted' : status === 'Discontinued' ? 'line-through text-danger-300' : 'text-text-secondary'}`}>{iv}</span>
                               <select
                                 value={status}
-                                onChange={e => {
-                                  const newStatus = e.target.value;
-                                  const oldStatus = status;
-                                  // Save to localStorage
-                                  const statuses = getIvStatuses(goal.id);
-                                  statuses[i] = newStatus;
-                                  localStorage.setItem(`k360_iv_${patient.id}_${goal.id}`, JSON.stringify(statuses));
-                                  // Log as a progress entry for audit trail
-                                  addEntry(patient.id, 'carePlanProgress', {
-                                    goalId: goal.id,
-                                    goalDescription: goal.description,
-                                    healthConcern: goal.healthConcern || '',
-                                    status: goal.status,
-                                    note: `Intervention "${iv}" changed from ${oldStatus} to ${newStatus}`,
-                                    goalEvaluation: newStatus === 'Completed' ? 'Partially Met' : '',
-                                    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-                                    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                                    interventionUpdate: { index: i, intervention: iv, from: oldStatus, to: newStatus },
-                                  });
-                                  setExpandedGoals(prev => new Set(prev));
-                                }}
+                                onChange={e => updateDraftIv(goal.id, i, e.target.value)}
                                 className={`input-field py-1 px-2 text-[10px] font-semibold w-auto min-w-[100px] shrink-0 ${style.text}`}
                               >
                                 {interventionStatuses.map(s => <option key={s} value={s}>{s}</option>)}
@@ -351,6 +370,11 @@ export default function CarePlanTab({ patient }) {
                           );
                         })}
                       </div>
+                      {draftDirty[goal.id] && (
+                        <button onClick={() => saveInterventionEntry(goal)} className="btn-primary py-1.5 px-4 text-xs mt-2 flex items-center gap-1.5">
+                          <CheckCircleIcon className="w-3.5 h-3.5" /> Save Entry
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <p className="text-xs text-text-muted mb-3">No interventions documented</p>
