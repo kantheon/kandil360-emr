@@ -10,6 +10,7 @@ import {
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
+import { addPatientEntry, getPatientEntries } from '../../data/localStore';
 
 const directionIcons = { 'Outbound': PhoneArrowUpRightIcon, 'Inbound': PhoneArrowDownLeftIcon };
 const methodColors = { 'Phone': 'badge-info', 'Fax': 'badge-neutral', 'Email': 'badge-active', 'In-Person': 'badge-warning' };
@@ -17,11 +18,49 @@ const methodColors = { 'Phone': 'badge-info', 'Fax': 'badge-neutral', 'Email': '
 export default function CommunicationsTab({ patient }) {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
-  const [expandedComms, setExpandedComms] = useState(new Set(patient.communications.length > 0 ? [patient.communications[0].id] : []));
+  const [_saveCount, setSaveCount] = useState(0);
+  const [direction, setDirection] = useState('Outbound');
+  const [method, setMethod] = useState('Phone');
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactRole, setContactRole] = useState('Patient');
+  const [subject, setSubject] = useState('');
+  const [summary, setSummary] = useState('');
+  const [outcome, setOutcome] = useState('');
+  const [followUpDate, setFollowUpDate] = useState('');
+
+  const localEntries = getPatientEntries(patient.id, 'communications');
+  const allComms = [...localEntries.slice().reverse(), ...patient.communications];
+
+  const [expandedComms, setExpandedComms] = useState(new Set(allComms.length > 0 ? [allComms[0].id] : []));
 
   const toggleComm = (id) => setExpandedComms(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const filtered = patient.communications.filter(comm => {
+  const resetForm = () => {
+    setDirection('Outbound'); setMethod('Phone'); setContactPerson(''); setContactRole('Patient');
+    setSubject(''); setSummary(''); setOutcome(''); setFollowUpDate('');
+  };
+
+  const handleSave = () => {
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const entry = {
+      date: today,
+      direction,
+      method,
+      contactPerson,
+      contactRole,
+      subject,
+      summary,
+      outcome,
+      followUpNeeded: !!followUpDate,
+      followUpDate: followUpDate || null,
+    };
+    addPatientEntry(patient.id, 'communications', entry);
+    setShowForm(false);
+    resetForm();
+    setSaveCount(c => c + 1);
+  };
+
+  const filtered = allComms.filter(comm => {
     if (!search) return true;
     const q = search.toLowerCase();
     return [comm.subject, comm.summary, comm.contactPerson, comm.contactRole, comm.method, comm.date, comm.outcome].join(' ').toLowerCase().includes(q);
@@ -45,22 +84,22 @@ export default function CommunicationsTab({ patient }) {
       {/* Modal Form */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Log Communication" wide>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Direction</label><select className="input-field py-2 text-xs"><option>Outbound</option><option>Inbound</option></select></div>
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Method</label><select className="input-field py-2 text-xs"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option></select></div>
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Contact</label><input type="text" className="input-field py-2 text-xs" placeholder="Name" /></div>
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option></select></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Direction</label><select value={direction} onChange={e => setDirection(e.target.value)} className="input-field py-2 text-xs"><option>Outbound</option><option>Inbound</option></select></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Method</label><select value={method} onChange={e => setMethod(e.target.value)} className="input-field py-2 text-xs"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option></select></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Contact</label><input type="text" className="input-field py-2 text-xs" placeholder="Name" value={contactPerson} onChange={e => setContactPerson(e.target.value)} /></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select value={contactRole} onChange={e => setContactRole(e.target.value)} className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option></select></div>
         </div>
         <div className="space-y-3 mb-4">
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Subject</label><input type="text" className="input-field py-2 text-xs" placeholder="Brief subject" /></div>
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Summary</label><textarea className="textarea-field text-xs" rows={3} placeholder="Summarize..." /></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Subject</label><input type="text" className="input-field py-2 text-xs" placeholder="Brief subject" value={subject} onChange={e => setSubject(e.target.value)} /></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Summary</label><textarea className="textarea-field text-xs" rows={3} placeholder="Summarize..." value={summary} onChange={e => setSummary(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs font-medium text-text-secondary mb-1 block">Outcome</label><input type="text" className="input-field py-2 text-xs" placeholder="Result" /></div>
-            <div><label className="text-xs font-medium text-text-secondary mb-1 block">Follow-up</label><input type="date" className="input-field py-2 text-xs" /></div>
+            <div><label className="text-xs font-medium text-text-secondary mb-1 block">Outcome</label><input type="text" className="input-field py-2 text-xs" placeholder="Result" value={outcome} onChange={e => setOutcome(e.target.value)} /></div>
+            <div><label className="text-xs font-medium text-text-secondary mb-1 block">Follow-up</label><input type="date" className="input-field py-2 text-xs" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} /></div>
           </div>
         </div>
         <div className="flex justify-end gap-2">
           <button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
-          <button className="btn-primary py-2 text-xs">Save</button>
+          <button onClick={handleSave} className="btn-primary py-2 text-xs">Save</button>
         </div>
       </Modal>
 
@@ -100,8 +139,8 @@ export default function CommunicationsTab({ patient }) {
           );
         })}
       </div>
-      {filtered.length === 0 && patient.communications.length > 0 && <div className="text-center py-8"><p className="text-sm text-text-muted">No results for "{search}"</p></div>}
-      {patient.communications.length === 0 && <div className="text-center py-12"><ChatBubbleLeftRightIcon className="w-12 h-12 text-text-muted/30 mx-auto mb-3" /><p className="text-sm text-text-muted">No communications logged</p></div>}
+      {filtered.length === 0 && allComms.length > 0 && <div className="text-center py-8"><p className="text-sm text-text-muted">No results for "{search}"</p></div>}
+      {allComms.length === 0 && <div className="text-center py-12"><ChatBubbleLeftRightIcon className="w-12 h-12 text-text-muted/30 mx-auto mb-3" /><p className="text-sm text-text-muted">No communications logged</p></div>}
     </div>
   );
 }

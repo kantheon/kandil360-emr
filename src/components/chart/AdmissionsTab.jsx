@@ -5,8 +5,11 @@ import {
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   ChevronDownIcon,
-  ChevronUpIcon
+  ChevronUpIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
+import Modal from '../Modal';
+import { addPatientEntry, getPatientEntries } from '../../data/localStore';
 
 const facilityTypeColors = {
   'Acute Care': 'badge-critical',
@@ -16,7 +19,19 @@ const facilityTypeColors = {
 
 export default function AdmissionsTab({ patient }) {
   const [search, setSearch] = useState('');
-  const [expandedAdms, setExpandedAdms] = useState(new Set(patient.admissions.map(a => a.id)));
+  const [showForm, setShowForm] = useState(false);
+  const [_saveCount, setSaveCount] = useState(0);
+  const [facility, setFacility] = useState('');
+  const [facilityType, setFacilityType] = useState('Acute Care');
+  const [admitDate, setAdmitDate] = useState('');
+  const [admitDiagnosis, setAdmitDiagnosis] = useState('');
+  const [attendingPhysician, setAttendingPhysician] = useState('');
+  const [levelOfCare, setLevelOfCare] = useState('Med-Surg');
+
+  const localEntries = getPatientEntries(patient.id, 'admissions');
+  const allAdmissions = [...localEntries.slice().reverse().map(e => ({ ...e, dischargeDate: e.dischargeDate || null })), ...patient.admissions];
+
+  const [expandedAdms, setExpandedAdms] = useState(new Set(allAdmissions.map(a => a.id)));
 
   const toggleAdm = (id) => {
     setExpandedAdms(prev => {
@@ -26,8 +41,28 @@ export default function AdmissionsTab({ patient }) {
     });
   };
 
-  const current = patient.admissions.filter(a => !a.dischargeDate);
-  const past = patient.admissions.filter(a => a.dischargeDate);
+  const resetForm = () => {
+    setFacility(''); setFacilityType('Acute Care'); setAdmitDate(''); setAdmitDiagnosis(''); setAttendingPhysician(''); setLevelOfCare('Med-Surg');
+  };
+
+  const handleSave = () => {
+    const entry = {
+      facility,
+      facilityType,
+      admitDate,
+      admitDiagnosis,
+      attendingPhysician,
+      levelOfCare,
+      dischargeDate: null,
+    };
+    addPatientEntry(patient.id, 'admissions', entry);
+    setShowForm(false);
+    resetForm();
+    setSaveCount(c => c + 1);
+  };
+
+  const current = allAdmissions.filter(a => !a.dischargeDate);
+  const past = allAdmissions.filter(a => a.dischargeDate);
 
   const filterAdm = (adm) => {
     if (!search) return true;
@@ -45,11 +80,54 @@ export default function AdmissionsTab({ patient }) {
           <h2 className="text-lg font-semibold text-text-primary">Admissions</h2>
           <p className="text-xs text-text-muted mt-0.5">{current.length} current, {past.length} past</p>
         </div>
-        <div className="relative sm:w-64">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <input type="text" placeholder="Search admissions..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-9 py-2 text-xs" />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 sm:w-64">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            <input type="text" placeholder="Search admissions..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-9 py-2 text-xs" />
+          </div>
+          <button onClick={() => setShowForm(true)} className="btn-primary py-2 flex items-center gap-1.5">
+            <PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">Add Admission</span>
+          </button>
         </div>
       </div>
+
+      {/* Modal Form */}
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Admission">
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Facility</label>
+            <input type="text" className="input-field py-2 text-xs" placeholder="Facility name" value={facility} onChange={e => setFacility(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Facility Type</label>
+            <select value={facilityType} onChange={e => setFacilityType(e.target.value)} className="input-field py-2 text-xs">
+              <option>Acute Care</option><option>SNF</option><option>Inpatient Rehab</option><option>LTACH</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Admit Date</label>
+            <input type="date" className="input-field py-2 text-xs" value={admitDate} onChange={e => setAdmitDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Admit Diagnosis</label>
+            <input type="text" className="input-field py-2 text-xs" placeholder="Primary diagnosis" value={admitDiagnosis} onChange={e => setAdmitDiagnosis(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Attending Physician</label>
+            <input type="text" className="input-field py-2 text-xs" placeholder="Physician name" value={attendingPhysician} onChange={e => setAttendingPhysician(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Level of Care</label>
+            <select value={levelOfCare} onChange={e => setLevelOfCare(e.target.value)} className="input-field py-2 text-xs">
+              <option>ICU</option><option>Telemetry</option><option>Med-Surg</option><option>Observation</option><option>Surgical</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
+          <button onClick={handleSave} className="btn-primary py-2 text-xs">Save Admission</button>
+        </div>
+      </Modal>
 
       {/* Current */}
       {filteredCurrent.length > 0 && (

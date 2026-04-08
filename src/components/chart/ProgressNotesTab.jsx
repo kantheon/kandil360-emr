@@ -10,6 +10,7 @@ import {
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
+import { addPatientEntry, getPatientEntries } from '../../data/localStore';
 
 const methodIcons = { 'Phone': PhoneIcon, 'Video': VideoCameraIcon, 'In-Person': UserIcon };
 
@@ -17,13 +18,55 @@ export default function ProgressNotesTab({ patient }) {
   const [showForm, setShowForm] = useState(false);
   const [noteType, setNoteType] = useState('SOAP');
   const [search, setSearch] = useState('');
-  const [expandedNotes, setExpandedNotes] = useState(new Set(patient.progressNotes.length > 0 ? [patient.progressNotes[0].id] : []));
+  const [_saveCount, setSaveCount] = useState(0);
+  const [contactMethod, setContactMethod] = useState('Phone');
+  const [datetime, setDatetime] = useState('');
+  const [subjective, setSubjective] = useState('');
+  const [objective, setObjective] = useState('');
+  const [assessment, setAssessment] = useState('');
+  const [plan, setPlan] = useState('');
+  const [data, setData] = useState('');
+  const [action, setAction] = useState('');
+  const [response, setResponse] = useState('');
+
+  const localEntries = getPatientEntries(patient.id, 'progressNotes');
+  const allNotes = [...localEntries.slice().reverse(), ...patient.progressNotes];
+
+  const [expandedNotes, setExpandedNotes] = useState(new Set(allNotes.length > 0 ? [allNotes[0].id] : []));
 
   const toggleNote = (id) => setExpandedNotes(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const expandAll = () => setExpandedNotes(new Set(filtered.map(n => n.id)));
   const collapseAll = () => setExpandedNotes(new Set());
 
-  const filtered = patient.progressNotes.filter(note => {
+  const resetForm = () => {
+    setNoteType('SOAP');
+    setContactMethod('Phone');
+    setDatetime('');
+    setSubjective(''); setObjective(''); setAssessment(''); setPlan('');
+    setData(''); setAction(''); setResponse('');
+  };
+
+  const handleSave = () => {
+    const dt = datetime || new Date().toISOString().slice(0, 16);
+    const dateStr = new Date(dt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const timeStr = new Date(dt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const entry = {
+      date: dateStr,
+      time: timeStr,
+      author: 'Current User',
+      type: noteType,
+      contactMethod,
+      ...(noteType === 'SOAP'
+        ? { subjective, objective, assessment, plan }
+        : { data, action, response }),
+    };
+    addPatientEntry(patient.id, 'progressNotes', entry);
+    setShowForm(false);
+    resetForm();
+    setSaveCount(c => c + 1);
+  };
+
+  const filtered = allNotes.filter(note => {
     if (!search) return true;
     const q = search.toLowerCase();
     return [note.subjective, note.objective, note.assessment, note.plan, note.data, note.action, note.response, note.author, note.date, note.type, note.contactMethod].filter(Boolean).join(' ').toLowerCase().includes(q);
@@ -55,39 +98,39 @@ export default function ProgressNotesTab({ patient }) {
           </div>
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Contact Method</label>
-            <select className="input-field py-2 text-xs"><option>Phone</option><option>Video</option><option>In-Person</option><option>Email</option></select>
+            <select value={contactMethod} onChange={e => setContactMethod(e.target.value)} className="input-field py-2 text-xs"><option>Phone</option><option>Video</option><option>In-Person</option><option>Email</option></select>
           </div>
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Date & Time</label>
-            <input type="datetime-local" className="input-field py-2 text-xs" defaultValue={new Date().toISOString().slice(0, 16)} />
+            <input type="datetime-local" className="input-field py-2 text-xs" value={datetime || new Date().toISOString().slice(0, 16)} onChange={e => setDatetime(e.target.value)} />
           </div>
         </div>
         {noteType === 'SOAP' ? (
           <div className="space-y-3">
-            {['Subjective', 'Objective', 'Assessment', 'Plan'].map(f => (
+            {[['Subjective', subjective, setSubjective], ['Objective', objective, setObjective], ['Assessment', assessment, setAssessment], ['Plan', plan, setPlan]].map(([f, val, setter]) => (
               <div key={f}>
                 <label className="text-xs font-semibold text-text-secondary mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 bg-primary-100 text-primary-700 rounded-md flex items-center justify-center text-[10px] font-bold">{f[0]}</span>{f}
                 </label>
-                <textarea className="textarea-field text-xs" rows={3} placeholder={`Enter ${f.toLowerCase()}...`} />
+                <textarea className="textarea-field text-xs" rows={3} placeholder={`Enter ${f.toLowerCase()}...`} value={val} onChange={e => setter(e.target.value)} />
               </div>
             ))}
           </div>
         ) : (
           <div className="space-y-3">
-            {['Data', 'Action', 'Response'].map(f => (
+            {[['Data', data, setData], ['Action', action, setAction], ['Response', response, setResponse]].map(([f, val, setter]) => (
               <div key={f}>
                 <label className="text-xs font-semibold text-text-secondary mb-1 flex items-center gap-2">
                   <span className="w-5 h-5 bg-accent-100 text-accent-700 rounded-md flex items-center justify-center text-[10px] font-bold">{f[0]}</span>{f}
                 </label>
-                <textarea className="textarea-field text-xs" rows={3} placeholder={`Enter ${f.toLowerCase()}...`} />
+                <textarea className="textarea-field text-xs" rows={3} placeholder={`Enter ${f.toLowerCase()}...`} value={val} onChange={e => setter(e.target.value)} />
               </div>
             ))}
           </div>
         )}
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
-          <button className="btn-primary py-2 text-xs">Save Note</button>
+          <button onClick={handleSave} className="btn-primary py-2 text-xs">Save Note</button>
         </div>
       </Modal>
 
@@ -143,8 +186,8 @@ export default function ProgressNotesTab({ patient }) {
           );
         })}
       </div>
-      {filtered.length === 0 && patient.progressNotes.length > 0 && <div className="text-center py-8"><p className="text-sm text-text-muted">No notes match "{search}"</p></div>}
-      {patient.progressNotes.length === 0 && <div className="text-center py-12"><DocumentTextIcon className="w-12 h-12 text-text-muted/30 mx-auto mb-3" /><p className="text-sm text-text-muted">No progress notes yet</p></div>}
+      {filtered.length === 0 && allNotes.length > 0 && <div className="text-center py-8"><p className="text-sm text-text-muted">No notes match "{search}"</p></div>}
+      {allNotes.length === 0 && <div className="text-center py-12"><DocumentTextIcon className="w-12 h-12 text-text-muted/30 mx-auto mb-3" /><p className="text-sm text-text-muted">No progress notes yet</p></div>}
     </div>
   );
 }

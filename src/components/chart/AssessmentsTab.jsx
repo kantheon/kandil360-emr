@@ -13,6 +13,7 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { assessmentTemplates } from '../../data/assessmentTemplates';
+import { addPatientEntry, getPatientEntries } from '../../data/localStore';
 
 const statusColors = {
   'Completed': 'badge-active',
@@ -39,10 +40,15 @@ function getScoreResult(template, answers) {
 
 export default function AssessmentsTab({ patient }) {
   const [search, setSearch] = useState('');
-  const [expandedAssessments, setExpandedAssessments] = useState(new Set(patient.assessments.length > 0 ? [patient.assessments[0].id] : []));
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [formAnswers, setFormAnswers] = useState({});
+  const [_saveCount, setSaveCount] = useState(0);
+
+  const localEntries = getPatientEntries(patient.id, 'assessments');
+  const allAssessments = [...localEntries.slice().reverse(), ...patient.assessments];
+
+  const [expandedAssessments, setExpandedAssessments] = useState(new Set(allAssessments.length > 0 ? [allAssessments[0].id] : []));
 
   const toggleAssessment = (id) => {
     setExpandedAssessments(prev => {
@@ -52,7 +58,36 @@ export default function AssessmentsTab({ patient }) {
     });
   };
 
-  const filtered = patient.assessments.filter(a => {
+  const handleSaveAssessment = () => {
+    if (!selectedTemplate || !allAnswered) return;
+    const result = getScoreResult(selectedTemplate, formAnswers);
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const entry = {
+      templateId: selectedTemplate.id,
+      templateName: selectedTemplate.name,
+      answers: formAnswers,
+      score: result.total,
+      result: result.label,
+      type: selectedTemplate.name,
+      date: today,
+      author: 'Current User',
+      status: 'Completed',
+      summary: `${selectedTemplate.name}: Score ${result.total} - ${result.label}`,
+      phq2Score: null,
+      fallRisk: null,
+      painLevel: null,
+      cognitiveStatus: null,
+      functionalStatus: null,
+      sdoh: null,
+    };
+    addPatientEntry(patient.id, 'assessments', entry);
+    setShowForm(false);
+    setSelectedTemplate(null);
+    setFormAnswers({});
+    setSaveCount(c => c + 1);
+  };
+
+  const filtered = allAssessments.filter(a => {
     if (!search) return true;
     const q = search.toLowerCase();
     return [a.type, a.author, a.date, a.summary, a.functionalStatus, a.cognitiveStatus].filter(Boolean).join(' ').toLowerCase().includes(q);
@@ -133,7 +168,7 @@ export default function AssessmentsTab({ patient }) {
             )}
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => { setShowForm(false); setSelectedTemplate(null); }} className="btn-secondary py-2 text-xs">Cancel</button>
-              <button disabled={!allAnswered} className={`btn-primary py-2 text-xs ${!allAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <button onClick={handleSaveAssessment} disabled={!allAnswered} className={`btn-primary py-2 text-xs ${!allAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 <CheckCircleIcon className="w-4 h-4 inline mr-1" />Save Assessment
               </button>
             </div>
@@ -228,10 +263,10 @@ export default function AssessmentsTab({ patient }) {
         })}
       </div>
 
-      {filtered.length === 0 && patient.assessments.length > 0 && (
+      {filtered.length === 0 && allAssessments.length > 0 && (
         <div className="text-center py-8"><p className="text-sm text-text-muted">No results for "{search}"</p></div>
       )}
-      {patient.assessments.length === 0 && !showForm && (
+      {allAssessments.length === 0 && !showForm && (
         <div className="text-center py-12">
           <ClipboardDocumentCheckIcon className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
           <p className="text-sm text-text-muted">No assessments on file</p>

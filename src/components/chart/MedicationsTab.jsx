@@ -1,19 +1,85 @@
+import { useState } from 'react';
 import {
   BeakerIcon,
   ShieldExclamationIcon,
-  CheckBadgeIcon
+  CheckBadgeIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
+import Modal from '../Modal';
+import { addPatientEntry, getPatientEntries } from '../../data/localStore';
 
 export default function MedicationsTab({ patient }) {
-  const activeMeds = patient.medications.filter(m => m.status === 'Active');
-  const inactiveMeds = patient.medications.filter(m => m.status !== 'Active');
+  const [showForm, setShowForm] = useState(false);
+  const [_saveCount, setSaveCount] = useState(0);
+  const [medName, setMedName] = useState('');
+  const [medDose, setMedDose] = useState('');
+  const [medFrequency, setMedFrequency] = useState('Daily');
+  const [medPrescriber, setMedPrescriber] = useState('');
+  const [medStatus, setMedStatus] = useState('Active');
+
+  const localEntries = getPatientEntries(patient.id, 'medications');
+  const allMedications = [...localEntries.slice().reverse().map(e => ({ ...e, status: e.status || 'Active' })), ...patient.medications];
+
+  const resetForm = () => {
+    setMedName(''); setMedDose(''); setMedFrequency('Daily'); setMedPrescriber(''); setMedStatus('Active');
+  };
+
+  const handleSave = () => {
+    const entry = {
+      name: medName,
+      dose: medDose,
+      frequency: medFrequency,
+      prescriber: medPrescriber,
+      status: medStatus,
+    };
+    addPatientEntry(patient.id, 'medications', entry);
+    setShowForm(false);
+    resetForm();
+    setSaveCount(c => c + 1);
+  };
+
+  const activeMeds = allMedications.filter(m => m.status === 'Active');
+  const inactiveMeds = allMedications.filter(m => m.status !== 'Active');
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h2 className="text-lg font-semibold text-text-primary">Medications</h2>
-        <p className="text-xs text-text-muted mt-0.5">{activeMeds.length} active medications</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary">Medications</h2>
+          <p className="text-xs text-text-muted mt-0.5">{activeMeds.length} active medications</p>
+        </div>
+        <button onClick={() => setShowForm(true)} className="btn-primary py-2 flex items-center gap-1.5">
+          <PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">Add Medication</span>
+        </button>
       </div>
+
+      {/* Modal Form */}
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Medication">
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Medication Name</label>
+            <input type="text" className="input-field py-2 text-xs" placeholder="e.g. Lisinopril" value={medName} onChange={e => setMedName(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Dose</label>
+            <input type="text" className="input-field py-2 text-xs" placeholder="e.g. 10mg" value={medDose} onChange={e => setMedDose(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Frequency</label>
+            <select value={medFrequency} onChange={e => setMedFrequency(e.target.value)} className="input-field py-2 text-xs">
+              <option>Daily</option><option>BID</option><option>TID</option><option>QID</option><option>QHS</option><option>PRN</option><option>Weekly</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Prescriber</label>
+            <input type="text" className="input-field py-2 text-xs" placeholder="Prescriber name" value={medPrescriber} onChange={e => setMedPrescriber(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
+          <button onClick={handleSave} className="btn-primary py-2 text-xs">Save Medication</button>
+        </div>
+      </Modal>
 
       {/* Allergies Alert */}
       {patient.allergies.length > 0 && (
