@@ -87,12 +87,12 @@ export default function PatientChart() {
       {/* STICKY HEADER - no gap, flush to top */}
       <div className="sticky top-12 lg:top-0 z-20 bg-white shadow-sm -mt-[1px]">
         {/* Patient banner */}
-        <div className="px-4 lg:px-6 py-2 border-b border-border-light">
-          <div className="flex items-center gap-3 max-w-7xl mx-auto">
+        <div className="px-3 sm:px-4 lg:px-6 py-2 border-b border-border-light">
+          <div className="flex items-center gap-2 sm:gap-3 max-w-7xl mx-auto">
             <Link to="/patients" className="p-1.5 -ml-1.5 rounded-lg text-text-muted hover:text-primary-600 hover:bg-primary-50 transition-colors shrink-0">
               <ArrowLeftIcon className="w-4 h-4" />
             </Link>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-primary-500/20 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md shadow-primary-500/20 shrink-0">
               {patient.firstName[0]}{patient.lastName[0]}
             </div>
             <div className="flex-1 min-w-0">
@@ -139,8 +139,8 @@ export default function PatientChart() {
         </div>
 
         {/* Tab bar */}
-        <div className="px-2 lg:px-4 overflow-x-auto bg-surface-alt border-b border-border-light">
-          <div className="flex gap-1 max-w-7xl mx-auto py-1">
+        <div className="px-2 lg:px-4 overflow-x-auto bg-surface-alt border-b border-border-light" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex gap-0.5 sm:gap-1 max-w-7xl mx-auto py-1 min-w-0">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const count = tab.id === 'notes' ? patient.progressNotes.length :
@@ -155,16 +155,16 @@ export default function PatientChart() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer shrink-0 sm:flex-1 ${
                     isActive
                       ? 'bg-white text-primary-700 shadow-sm border border-border-light'
                       : 'text-text-secondary hover:bg-white/60 hover:text-text-primary border border-transparent'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-primary-500' : 'text-text-muted'}`} />
+                  <Icon className={`w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0 ${isActive ? 'text-primary-500' : 'text-text-muted'}`} />
                   <span className="hidden sm:inline">{tab.label}</span>
                   {count > 0 && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none ${
+                    <span className={`hidden sm:inline text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none ${
                       isActive ? 'bg-primary-100 text-primary-700' : 'bg-border-light text-text-muted'
                     }`}>{count}</span>
                   )}
@@ -177,17 +177,17 @@ export default function PatientChart() {
 
       {/* Allergy alert - scrolls with content */}
       {patient.allergies.length > 0 && (
-        <div className="bg-danger-50 border-b border-danger-100 px-4 lg:px-6 py-1.5 flex items-center gap-2">
-          <ShieldExclamationIcon className="w-3.5 h-3.5 text-danger-500 shrink-0" />
+        <div className="bg-danger-50 border-b border-danger-100 px-3 sm:px-4 lg:px-6 py-1.5 flex items-start sm:items-center gap-2">
+          <ShieldExclamationIcon className="w-3.5 h-3.5 text-danger-500 shrink-0 mt-0.5 sm:mt-0" />
           <span className="text-[11px] font-bold text-danger-600 shrink-0">ALLERGIES:</span>
-          <span className="text-[11px] text-danger-600">
+          <span className="text-[11px] text-danger-600 break-words min-w-0">
             {patient.allergies.map(a => `${a.allergen} (${a.reaction})`).join(' | ')}
           </span>
         </div>
       )}
 
       {/* Tab Content */}
-      <div className="p-4 lg:p-6">
+      <div className="p-3 sm:p-4 lg:p-6">
         <div className="max-w-7xl mx-auto">
           {renderTab()}
         </div>

@@ -399,7 +399,7 @@ export default function VitalsTab({ patient }) {
 
       {/* ---- Current Vitals Grid ---- */}
       {latest ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {vitalCardDefs.map((def) => {
             const Icon = def.icon;
             const val = def.getValue(latest);
@@ -877,7 +877,7 @@ export default function VitalsTab({ patient }) {
                   {isOpen && (
                     <div className="p-4 lg:p-5 border-t border-border-light animate-fade-in">
                       {/* Vitals detail grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
                         <VitalPill
                           label="BP"
                           value={

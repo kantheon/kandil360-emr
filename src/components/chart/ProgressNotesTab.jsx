@@ -125,7 +125,7 @@ export default function ProgressNotesTab({ patient }) {
 
       {/* Modal Form */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title={editingEntry ? 'Edit Progress Note' : 'New Progress Note'} wide footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">{editingEntry ? 'Update Note' : 'Save Note'}</button></div>}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Note Type</label>
             <select value={noteType} onChange={e => setNoteType(e.target.value)} className="input-field py-2 text-xs"><option value="SOAP">SOAP Note</option><option value="DAR">DAR Note</option></select>
@@ -134,7 +134,7 @@ export default function ProgressNotesTab({ patient }) {
             <label className="text-xs font-medium text-text-secondary mb-1 block">Contact Method</label>
             <select value={contactMethod} onChange={e => setContactMethod(e.target.value)} className="input-field py-2 text-xs"><option>Phone</option><option>Video</option><option>In-Person</option><option>Email</option></select>
           </div>
-          <div>
+          <div className="col-span-2 sm:col-span-1">
             <label className="text-xs font-medium text-text-secondary mb-1 block">Date & Time</label>
             <input type="datetime-local" className="input-field py-2 text-xs" value={datetime || new Date().toISOString().slice(0, 16)} onChange={e => setDatetime(e.target.value)} />
           </div>

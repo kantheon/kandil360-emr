@@ -39,8 +39,8 @@ export default function PatientList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Patient Roster</h1>
-          <p className="text-text-secondary text-sm mt-1">{patients.length} active patients in your caseload</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Patient Roster</h1>
+          <p className="text-text-secondary text-xs sm:text-sm mt-1">{patients.length} active patients in your caseload</p>
         </div>
       </div>
 
@@ -56,13 +56,13 @@ export default function PatientList() {
             className="input-field pl-11"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <FunnelIcon className="w-4 h-4 text-text-muted" />
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <FunnelIcon className="w-4 h-4 text-text-muted shrink-0" />
           {['All', 'Critical', 'High', 'Medium', 'Low'].map((level) => (
             <button
               key={level}
               onClick={() => setFilterRisk(level)}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                 filterRisk === level
                   ? 'bg-primary-600 text-white shadow-sm'
                   : 'bg-white text-text-secondary border border-border hover:bg-surface-hover'
@@ -75,7 +75,7 @@ export default function PatientList() {
       </div>
 
       {/* Patient Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
         {filtered.map((patient, index) => (
           <Link
             key={patient.id}

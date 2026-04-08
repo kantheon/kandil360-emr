@@ -257,7 +257,7 @@ export default function AdmissionsTab({ patient }) {
                   </button>
                   {isOpen && (
                     <div className="p-4 lg:p-5 border-t border-danger-100 animate-fade-in">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                         {[['Admit Diagnosis', adm.admitDiagnosis], ['Attending', adm.attendingPhysician], ['Level of Care', adm.levelOfCare]].map(([l, v]) => (
                           <div key={l} className="bg-surface-alt rounded-lg p-2.5">
                             <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider">{l}</p>
@@ -314,7 +314,7 @@ export default function AdmissionsTab({ patient }) {
                   </button>
                   {isOpen && (
                     <div className="p-4 lg:p-5 border-t border-border-light animate-fade-in">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                         {[['Admit Date', adm.admitDate], ['Discharge Date', adm.dischargeDate], ['LOS', `${adm.lengthOfStay} days`], ['Level of Care', adm.levelOfCare]].map(([l, v]) => (
                           <div key={l}>
                             <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider">{l}</p>

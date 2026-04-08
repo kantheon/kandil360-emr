@@ -439,7 +439,7 @@ export default function AuthorizationsTab({ patient }) {
           return (
             <div key={auth.id} className="card p-0 overflow-hidden">
               {/* Collapsed header */}
-              <button onClick={() => toggleAuth(auth.id)} className="w-full flex items-center gap-3 px-4 lg:px-5 py-3 bg-surface-alt hover:bg-surface-hover transition-colors cursor-pointer text-left">
+              <button onClick={() => toggleAuth(auth.id)} className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 lg:px-5 py-3 bg-surface-alt hover:bg-surface-hover transition-colors cursor-pointer text-left">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                   isApproved ? 'bg-accent-100' :
                   auth.status === 'Denied' || auth.status === 'Appeal Denied' ? 'bg-danger-100' :
@@ -518,7 +518,7 @@ export default function AuthorizationsTab({ patient }) {
 
                   {/* Regulatory timer detail for pending auths */}
                   {timer && (
-                    <div className={`rounded-xl p-3 border flex items-center gap-3 ${timer.overdue ? 'bg-danger-50 border-danger-200' : 'bg-surface-alt border-border-light'}`}>
+                    <div className={`rounded-xl p-3 border flex flex-col sm:flex-row sm:items-center gap-3 ${timer.overdue ? 'bg-danger-50 border-danger-200' : 'bg-surface-alt border-border-light'}`}>
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${timer.overdue ? 'bg-danger-100' : 'bg-warn-100'}`}>
                         <ClockIcon className={`w-4 h-4 ${timer.overdue ? 'text-danger-500' : 'text-warn-500'}`} />
                       </div>
@@ -537,7 +537,7 @@ export default function AuthorizationsTab({ patient }) {
                   )}
 
                   {/* Detail grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {[
                       ['Insurance Plan', auth.insurancePlan],
                       ['Service Type', auth.serviceType],

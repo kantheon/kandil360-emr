@@ -126,7 +126,7 @@ export default function MedicationsTab({ patient }) {
 
       {/* Allergies Alert */}
       {patient.allergies.length > 0 && (
-        <div className="bg-danger-50 rounded-2xl p-5 border border-danger-200">
+        <div className="bg-danger-50 rounded-2xl p-3 sm:p-5 border border-danger-200">
           <div className="flex items-center gap-2 mb-3">
             <ShieldExclamationIcon className="w-5 h-5 text-danger-500" />
             <h3 className="text-sm font-semibold text-danger-700">Drug Allergies</h3>
@@ -160,11 +160,11 @@ export default function MedicationsTab({ patient }) {
           <BeakerIcon className="w-4 h-4 text-primary-500" />
           Active Medications
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {activeMeds.map((med, i) => {
             const canEdit = isEditable(med.id);
             return (
-              <div key={med.id || i} className="card p-4 flex items-start gap-4">
+              <div key={med.id || i} className="card p-3 sm:p-4 flex items-start gap-3 sm:gap-4">
                 <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center shrink-0">
                   <span className="text-xs font-bold text-primary-600">Rx</span>
                 </div>
@@ -196,7 +196,7 @@ export default function MedicationsTab({ patient }) {
                     </div>
                   </div>
                   <div className="mt-1.5 space-y-1">
-                    <div className="flex items-center gap-4 text-xs text-text-secondary">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-text-secondary">
                       <span><span className="text-text-muted">Dose:</span> {med.dose}</span>
                       <span><span className="text-text-muted">Freq:</span> {med.frequency}</span>
                     </div>

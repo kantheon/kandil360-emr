@@ -167,21 +167,21 @@ export default function Dashboard() {
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in p-4 lg:p-6">
       {/* Greeting */}
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Good morning, {firstName}</h1>
-        <p className="text-text-secondary text-sm mt-1">Here's your caseload overview for today</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Good morning, {firstName}</h1>
+        <p className="text-text-secondary text-xs sm:text-sm mt-1">Here's your caseload overview for today</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="stat-card flex items-start gap-4">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${stat.color} shrink-0`}>
-              <stat.icon className="w-5 h-5" />
+          <div key={stat.label} className="stat-card flex items-start gap-3 sm:gap-4">
+            <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center ${stat.color} shrink-0`}>
+              <stat.icon className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-text-primary leading-none">{stat.value}</p>
-              <p className="text-sm text-text-secondary font-medium mt-1">{stat.label}</p>
-              <p className="text-xs text-text-muted mt-0.5">{stat.trend}</p>
+            <div className="min-w-0">
+              <p className="text-xl sm:text-2xl font-bold text-text-primary leading-none">{stat.value}</p>
+              <p className="text-xs sm:text-sm text-text-secondary font-medium mt-1 truncate">{stat.label}</p>
+              <p className="text-[10px] sm:text-xs text-text-muted mt-0.5 hidden sm:block">{stat.trend}</p>
             </div>
           </div>
         ))}
@@ -191,16 +191,16 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Tasks */}
         <div className="lg:col-span-3 card p-0">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border-light">
             <div className="flex items-center gap-2">
               <ClockIcon className="w-5 h-5 text-text-muted" />
-              <h2 className="text-base font-semibold text-text-primary">Upcoming Tasks</h2>
+              <h2 className="text-sm sm:text-base font-semibold text-text-primary">Upcoming Tasks</h2>
             </div>
-            <span className="badge badge-warning">{upcomingTasks.length} pending</span>
+            <span className="badge badge-warning text-[11px]">{upcomingTasks.length} pending</span>
           </div>
           <div className="divide-y divide-border-light">
             {upcomingTasks.map((task, i) => (
-              <div key={i} className="flex items-center gap-4 px-6 py-3.5 hover:bg-surface-alt transition-colors">
+              <div key={i} className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-3.5 hover:bg-surface-alt transition-colors">
                 <div className={`w-2 h-2 rounded-full shrink-0 ${
                   task.priority === 'high' ? 'bg-danger-400' : task.priority === 'medium' ? 'bg-warn-400' : 'bg-accent-400'
                 }`} />
@@ -220,20 +220,20 @@ export default function Dashboard() {
 
         {/* Recent Activity */}
         <div className="lg:col-span-2 card p-0">
-          <div className="flex items-center gap-2 px-6 py-4 border-b border-border-light">
+          <div className="flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 border-b border-border-light">
             <ArrowTrendingUpIcon className="w-5 h-5 text-text-muted" />
-            <h2 className="text-base font-semibold text-text-primary">Recent Activity</h2>
+            <h2 className="text-sm sm:text-base font-semibold text-text-primary">Recent Activity</h2>
           </div>
           <div className="divide-y divide-border-light">
             {recentActivity.length === 0 ? (
-              <div className="px-6 py-8 text-center">
+              <div className="px-4 sm:px-6 py-8 text-center">
                 <p className="text-sm text-text-muted">No recent activity yet</p>
                 <p className="text-xs text-text-muted mt-1">Activity will appear here as you add notes, communications, and assessments</p>
               </div>
             ) : recentActivity.map((item, i) => (
-              <div key={i} className="px-6 py-3.5">
-                <p className="text-sm text-text-primary leading-snug">{item.text}</p>
-                <p className="text-xs text-text-muted mt-1">{item.time}</p>
+              <div key={i} className="px-4 sm:px-6 py-3 sm:py-3.5">
+                <p className="text-xs sm:text-sm text-text-primary leading-snug">{item.text}</p>
+                <p className="text-[11px] sm:text-xs text-text-muted mt-1">{item.time}</p>
               </div>
             ))}
           </div>
@@ -242,16 +242,16 @@ export default function Dashboard() {
 
       {/* Critical Patients Quick View */}
       <div className="card p-0">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border-light">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border-light">
           <div className="flex items-center gap-2">
             <ExclamationTriangleIcon className="w-5 h-5 text-danger-400" />
-            <h2 className="text-base font-semibold text-text-primary">High Priority Patients</h2>
+            <h2 className="text-sm sm:text-base font-semibold text-text-primary">High Priority Patients</h2>
           </div>
-          <Link to="/patients" className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1">
+          <Link to="/patients" className="text-xs sm:text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1">
             View All <ChevronRightIcon className="w-4 h-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-6">
           {patients.filter(p => p.riskLevel === 'High' || p.riskLevel === 'Critical').map((patient) => (
             <Link
               key={patient.id}

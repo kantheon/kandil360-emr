@@ -385,18 +385,18 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   return(
     <div className="fixed inset-0 z-[90] bg-[#f0f4f8] flex flex-col animate-fade-in">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 lg:px-6 py-2.5 bg-gradient-to-r from-accent-600 to-accent-700 text-white shrink-0">
-        <PhoneIcon className="w-5 h-5" />
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 lg:px-6 py-2.5 bg-gradient-to-r from-accent-600 to-accent-700 text-white shrink-0">
+        <PhoneIcon className="w-5 h-5 shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold leading-tight">Call Mode &mdash; {patient.lastName}, {patient.firstName}</p>
-          <p className="text-[11px] opacity-80">{patient.id} &middot; {patient.mrn} &middot; {patient.age}y {patient.sex[0]}</p>
+          <p className="text-xs sm:text-sm font-bold leading-tight truncate">Call Mode &mdash; {patient.lastName}, {patient.firstName}</p>
+          <p className="text-[10px] sm:text-[11px] opacity-80 truncate">{patient.id} &middot; {patient.mrn} &middot; {patient.age}y {patient.sex[0]}</p>
         </div>
         <button onClick={onToggleMinimize} className="p-1.5 rounded-lg hover:bg-white/20 cursor-pointer" title="Minimize"><MinusIcon className="w-4 h-4" /></button>
         <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/20 cursor-pointer" title="End"><XMarkIcon className="w-4 h-4" /></button>
       </div>
 
       {/* Phone bar */}
-      <div className="flex items-center gap-2 px-4 lg:px-6 py-1.5 bg-white border-b border-border-light shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-2 px-3 sm:px-4 lg:px-6 py-1.5 bg-white border-b border-border-light shrink-0 overflow-x-auto flex-wrap sm:flex-nowrap" style={{ WebkitOverflowScrolling: 'touch' }}>
         <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider shrink-0">Dial:</span>
         <a href={`tel:${patient.phone}`} className="flex items-center gap-1.5 bg-accent-50 text-accent-700 px-2.5 py-1 rounded-lg text-[11px] font-medium hover:bg-accent-100 transition-colors shrink-0">
           <PhoneIcon className="w-3 h-3" />Patient {patient.phone}
@@ -421,8 +421,8 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
       {/* Split */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* LEFT */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-5 space-y-3 lg:border-r border-border-light">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 space-y-3 lg:border-r border-border-light">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             {[['PCP',patient.pcp],['Insurance',patient.insurance.plan.split(' - ')[0]],['Program',patient.caseInfo.program],['Acuity',patient.caseInfo.acuity]].map(([l,v])=>(
               <div key={l} className="card px-4 py-3">
                 <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider">{l}</p>
@@ -504,7 +504,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
         </div>
 
         {/* RIGHT - Documentation */}
-        <div className="w-full lg:w-[440px] flex flex-col bg-white shrink-0">
+        <div className="w-full lg:w-[440px] flex flex-col bg-white shrink-0 min-h-[40vh] lg:min-h-0 border-t lg:border-t-0">
           {/* Header with + button */}
           <div className="px-4 py-2.5 bg-surface-alt border-b border-border-light shrink-0 flex items-center justify-between">
             <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Documentation</p>

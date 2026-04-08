@@ -115,18 +115,18 @@ export default function CarePlanTab({ patient }) {
       </div>
 
       {/* ── Summary Cards ── */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-accent-50 rounded-2xl p-3 text-center border border-accent-100">
-          <p className="text-xl font-bold text-accent-600">{met}</p>
-          <p className="text-[11px] font-medium text-accent-700">Met</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="bg-accent-50 rounded-2xl p-2.5 sm:p-3 text-center border border-accent-100">
+          <p className="text-lg sm:text-xl font-bold text-accent-600">{met}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-accent-700">Met</p>
         </div>
-        <div className="bg-primary-50 rounded-2xl p-3 text-center border border-primary-100">
-          <p className="text-xl font-bold text-primary-600">{active}</p>
-          <p className="text-[11px] font-medium text-primary-700">Active</p>
+        <div className="bg-primary-50 rounded-2xl p-2.5 sm:p-3 text-center border border-primary-100">
+          <p className="text-lg sm:text-xl font-bold text-primary-600">{active}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-primary-700">Active</p>
         </div>
-        <div className="bg-surface-alt rounded-2xl p-3 text-center border border-border-light">
-          <p className="text-xl font-bold text-text-secondary">{notStarted}</p>
-          <p className="text-[11px] font-medium text-text-muted">Not Started</p>
+        <div className="bg-surface-alt rounded-2xl p-2.5 sm:p-3 text-center border border-border-light">
+          <p className="text-lg sm:text-xl font-bold text-text-secondary">{notStarted}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-text-muted">Not Started</p>
         </div>
       </div>
 
@@ -387,10 +387,10 @@ function GoalCard({ goal, patient, isOpen, onToggle, onDelete, addEntry, updateE
         <div className="px-4 pb-4 border-t border-border-light pt-3 animate-fade-in space-y-4">
 
           {/* 1. Goal Status */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
             <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider whitespace-nowrap">Goal Status</label>
             <select
-              className="input-field py-1.5 text-xs w-auto min-w-[140px]"
+              className="input-field py-1.5 text-xs w-full sm:w-auto sm:min-w-[140px]"
               value={draftGoalStatus}
               onChange={e => setDraftGoalStatus(e.target.value)}
             >
@@ -410,19 +410,21 @@ function GoalCard({ goal, patient, isOpen, onToggle, onDelete, addEntry, updateE
                   const status = draftIvStatuses[i] || 'Not Started';
                   const st = ivStyle(status);
                   return (
-                    <div key={i} className={`flex items-center gap-2 rounded-lg p-2 text-xs transition-all ${st.bg}`}>
-                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${st.dot}`} />
-                      <span className={`flex-1 ${
-                        status === 'Completed' ? 'line-through text-text-muted'
-                        : status === 'Discontinued' ? 'line-through text-danger-300'
-                        : 'text-text-secondary'
-                      }`}>
-                        {iv}
-                      </span>
+                    <div key={i} className={`flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg p-2 text-xs transition-all ${st.bg}`}>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${st.dot}`} />
+                        <span className={`flex-1 ${
+                          status === 'Completed' ? 'line-through text-text-muted'
+                          : status === 'Discontinued' ? 'line-through text-danger-300'
+                          : 'text-text-secondary'
+                        }`}>
+                          {iv}
+                        </span>
+                      </div>
                       <select
                         value={status}
                         onChange={e => updateIvStatus(i, e.target.value)}
-                        className="input-field py-1 px-2 text-[10px] font-semibold w-auto min-w-[110px] shrink-0"
+                        className="input-field py-1 px-2 text-[10px] font-semibold w-full sm:w-auto sm:min-w-[110px] shrink-0"
                       >
                         {IV_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -454,10 +456,10 @@ function GoalCard({ goal, patient, isOpen, onToggle, onDelete, addEntry, updateE
             )}
 
             {/* Add intervention inline */}
-            <div className="flex gap-2 mt-2">
+            <div className="flex flex-col sm:flex-row gap-2 mt-2">
               <input
                 type="text"
-                className="input-field py-1.5 text-xs flex-1"
+                className="input-field py-2 sm:py-1.5 text-xs flex-1"
                 placeholder="Add new intervention..."
                 value={newIvText}
                 onChange={e => setNewIvText(e.target.value)}
@@ -466,7 +468,7 @@ function GoalCard({ goal, patient, isOpen, onToggle, onDelete, addEntry, updateE
               <button
                 onClick={addNewIntervention}
                 disabled={!newIvText.trim()}
-                className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${!newIvText.trim() ? 'opacity-40 cursor-not-allowed' : ''}`}
+                className={`btn-secondary py-2 sm:py-1.5 px-3 text-xs flex items-center justify-center gap-1 w-full sm:w-auto ${!newIvText.trim() ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <PlusIcon className="w-3.5 h-3.5" /> Add
               </button>
@@ -488,11 +490,11 @@ function GoalCard({ goal, patient, isOpen, onToggle, onDelete, addEntry, updateE
           </div>
 
           {/* 4. Save Entry Button */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <button
               onClick={handleSaveEntry}
               disabled={!hasDirtyState}
-              className={`btn-primary py-2 px-5 text-xs flex items-center gap-1.5 ${!hasDirtyState ? 'opacity-40 cursor-not-allowed' : ''}`}
+              className={`btn-primary py-2.5 sm:py-2 px-5 text-xs flex items-center justify-center gap-1.5 w-full sm:w-auto ${!hasDirtyState ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               <CheckCircleIcon className="w-4 h-4" /> Save Entry
             </button>

@@ -158,7 +158,7 @@ export default function AssessmentsTab({ patient }) {
                   </label>
                   <div className="mt-2 space-y-1.5">
                     {q.options.map((opt) => (
-                      <label key={opt.value} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs ${formAnswers[q.id] === opt.value ? 'bg-primary-50 border border-primary-300 text-primary-700 font-medium' : 'bg-white border border-transparent hover:bg-surface-hover text-text-secondary'}`}>
+                      <label key={opt.value} className={`flex items-center gap-3 px-3 py-2.5 sm:py-2 rounded-lg cursor-pointer transition-all text-xs ${formAnswers[q.id] === opt.value ? 'bg-primary-50 border border-primary-300 text-primary-700 font-medium' : 'bg-white border border-transparent hover:bg-surface-hover text-text-secondary'}`}>
                         <input type="radio" name={q.id} value={opt.value} checked={formAnswers[q.id] === opt.value} onChange={() => handleAnswer(q.id, opt.value)} className="accent-primary-600" />
                         {opt.label}
                       </label>
@@ -220,7 +220,7 @@ export default function AssessmentsTab({ patient }) {
               {isOpen && (
                 <div className="p-4 lg:p-5 border-t border-border-light animate-fade-in">
                   {/* Scores Row */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
                     {[
                       { label: 'PHQ-2', value: assessment.phq2Score !== null ? `${assessment.phq2Score}/6` : 'N/A', color: assessment.phq2Score >= 3 ? 'text-danger-500' : 'text-accent-600' },
                       { label: 'Fall Risk', value: assessment.fallRisk, color: assessment.fallRisk === 'High' ? 'text-danger-500' : assessment.fallRisk === 'Moderate' ? 'text-warn-500' : 'text-accent-600' },
@@ -256,7 +256,7 @@ export default function AssessmentsTab({ patient }) {
                           <HomeIcon className="w-3.5 h-3.5 text-accent-500" />
                           <h4 className="text-[11px] font-semibold text-text-primary">SDOH</h4>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                           {Object.entries(assessment.sdoh).map(([key, value]) => (
                             <div key={key} className="bg-white rounded-md p-2 border border-border-light">
                               <p className="text-[10px] text-text-muted font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
