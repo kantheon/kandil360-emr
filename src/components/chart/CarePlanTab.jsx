@@ -11,6 +11,13 @@ import { useData } from '../../contexts/DataContext';
 import { getPatientEntries } from '../../data/localStore';
 
 const goalStatuses = ['Not Started','Initiated','In Progress','On Track','Met','Not Met','Deferred'];
+const interventionStatuses = ['Not Started','In Progress','Completed','Discontinued'];
+const ivStatusStyles = {
+  'Not Started': { bg: 'bg-surface-alt', text: 'text-text-muted', dot: 'bg-gray-300' },
+  'In Progress': { bg: 'bg-warn-50', text: 'text-[#92400e]', dot: 'bg-warn-400' },
+  'Completed': { bg: 'bg-accent-50', text: 'text-accent-700', dot: 'bg-accent-500' },
+  'Discontinued': { bg: 'bg-danger-50', text: 'text-danger-500', dot: 'bg-danger-400 opacity-50' },
+};
 const understandingLevels = ['Verbalizes Understanding', 'Partial Understanding', 'Does Not Understand', 'Unable to Assess'];
 const participationLevels = ['Willing & Active', 'Willing but Limited', 'Reluctant', 'Refuses'];
 const abilityLevels = ['Independent', 'Needs Assistance', 'Dependent', 'Unable'];
@@ -121,6 +128,24 @@ export default function CarePlanTab({ patient }) {
   const getGoalProgressEntries = (goalId) => {
     const all = getPatientEntries(patient.id, 'carePlanProgress');
     return all.filter(e => e.goalId === goalId).reverse();
+  };
+
+  // Intervention status tracking (stored per goal in localStorage)
+  const getIvStatuses = (goalId) => {
+    try {
+      const raw = localStorage.getItem(`k360_iv_${patient.id}_${goalId}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  };
+
+  const cycleIvStatus = (goalId, ivIndex) => {
+    const statuses = getIvStatuses(goalId);
+    const current = statuses[ivIndex] || 'Not Started';
+    const nextIdx = (interventionStatuses.indexOf(current) + 1) % interventionStatuses.length;
+    statuses[ivIndex] = interventionStatuses[nextIdx];
+    localStorage.setItem(`k360_iv_${patient.id}_${goalId}`, JSON.stringify(statuses));
+    // Force re-render
+    setExpandedGoals(prev => new Set(prev));
   };
 
   const toggleDetailIntervention = (iv) => {
@@ -285,14 +310,33 @@ export default function CarePlanTab({ patient }) {
                 <div className="px-4 pb-4 border-t border-border-light pt-3 animate-fade-in">
                   {interventions.length > 0 ? (
                     <div className="mb-3">
-                      <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Interventions</p>
+                      <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Interventions <span className="text-text-muted font-normal">(click to update status)</span></p>
                       <div className="space-y-1.5">
-                        {interventions.map((iv, i) => (
-                          <div key={i} className="flex items-start gap-2 bg-surface-alt rounded-lg p-2 text-xs text-text-secondary">
-                            <span className="w-4 h-4 bg-accent-100 text-accent-700 rounded text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
-                            {iv}
-                          </div>
-                        ))}
+                        {interventions.map((iv, i) => {
+                          const ivStatuses = getIvStatuses(goal.id);
+                          const status = ivStatuses[i] || 'Not Started';
+                          const style = ivStatusStyles[status] || ivStatusStyles['Not Started'];
+                          return (
+                            <div key={i} className={`flex items-center gap-2 rounded-lg p-2 text-xs transition-all ${style.bg}`}>
+                              <button
+                                onClick={() => cycleIvStatus(goal.id, i)}
+                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${
+                                  status === 'Completed' ? 'border-accent-500 bg-accent-500' :
+                                  status === 'In Progress' ? 'border-warn-400 bg-warn-100' :
+                                  status === 'Discontinued' ? 'border-danger-300 bg-danger-100' :
+                                  'border-gray-300 bg-white'
+                                }`}
+                                title={`Status: ${status} (click to change)`}
+                              >
+                                {status === 'Completed' && <CheckCircleIcon className="w-3 h-3 text-white" />}
+                                {status === 'In Progress' && <div className="w-2 h-2 bg-warn-500 rounded-full" />}
+                                {status === 'Discontinued' && <span className="text-[8px] text-danger-500 font-bold">X</span>}
+                              </button>
+                              <span className={`flex-1 ${status === 'Completed' ? 'line-through text-text-muted' : status === 'Discontinued' ? 'line-through text-danger-300' : 'text-text-secondary'}`}>{iv}</span>
+                              <span className={`text-[9px] font-semibold ${style.text} shrink-0`}>{status}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (
