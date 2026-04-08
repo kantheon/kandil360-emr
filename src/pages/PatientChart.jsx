@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { patients } from '../data/seedData';
+import { useData } from '../contexts/DataContext';
 import {
   ArrowLeftIcon,
   ShieldExclamationIcon,
@@ -47,8 +47,9 @@ export default function PatientChart() {
   const [activeTab, setActiveTab] = useState('overview');
   const [callModeOpen, setCallModeOpen] = useState(false);
   const [callModeMinimized, setCallModeMinimized] = useState(false);
+  const { getPatient } = useData();
 
-  const patient = patients.find(p => p.id === patientId);
+  const patient = getPatient(patientId);
 
   if (!patient) {
     return (

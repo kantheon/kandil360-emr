@@ -153,27 +153,58 @@ export default function ProgressNotesTab({ patient }) {
                 <div className="p-4 lg:p-5 border-t border-border-light animate-fade-in">
                   {note.type === 'SOAP' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {[['S','Subjective','subjective','primary'],['O','Objective','objective','accent'],['A','Assessment','assessment','warn'],['P','Plan','plan','danger']].map(([k,l,f,c]) => (
-                        <div key={k} className={`bg-${c}-50/50 rounded-xl p-3 border border-${c}-100/50`}>
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className={`w-5 h-5 bg-${c}-100 text-${c}-700 rounded-md flex items-center justify-center text-[10px] font-bold`}>{k}</span>
-                            <h4 className="text-xs font-semibold text-text-primary">{l}</h4>
-                          </div>
-                          <p className="text-xs text-text-secondary leading-relaxed">{note[f]}</p>
+                      <div className="bg-primary-50/50 rounded-xl p-3 border border-primary-100/50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-5 h-5 bg-primary-100 text-primary-700 rounded-md flex items-center justify-center text-[10px] font-bold">S</span>
+                          <h4 className="text-xs font-semibold text-text-primary">Subjective</h4>
                         </div>
-                      ))}
+                        <p className="text-xs text-text-secondary leading-relaxed">{note.subjective}</p>
+                      </div>
+                      <div className="bg-accent-50/50 rounded-xl p-3 border border-accent-100/50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-5 h-5 bg-accent-100 text-accent-700 rounded-md flex items-center justify-center text-[10px] font-bold">O</span>
+                          <h4 className="text-xs font-semibold text-text-primary">Objective</h4>
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed">{note.objective}</p>
+                      </div>
+                      <div className="bg-warn-50/50 rounded-xl p-3 border border-warn-100/50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-5 h-5 bg-warn-100 text-[#92400e] rounded-md flex items-center justify-center text-[10px] font-bold">A</span>
+                          <h4 className="text-xs font-semibold text-text-primary">Assessment</h4>
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed">{note.assessment}</p>
+                      </div>
+                      <div className="bg-danger-50/50 rounded-xl p-3 border border-danger-100/50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-5 h-5 bg-danger-100 text-danger-700 rounded-md flex items-center justify-center text-[10px] font-bold">P</span>
+                          <h4 className="text-xs font-semibold text-text-primary">Plan</h4>
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed">{note.plan}</p>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {[['D','Data','data','primary'],['A','Action','action','accent'],['R','Response','response','warn']].map(([k,l,f,c]) => (
-                        <div key={k} className={`bg-${c}-50/50 rounded-xl p-3 border border-${c}-100/50`}>
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className={`w-5 h-5 bg-${c}-100 text-${c}-700 rounded-md flex items-center justify-center text-[10px] font-bold`}>{k}</span>
-                            <h4 className="text-xs font-semibold text-text-primary">{l}</h4>
-                          </div>
-                          <p className="text-xs text-text-secondary leading-relaxed">{note[f]}</p>
+                      <div className="bg-primary-50/50 rounded-xl p-3 border border-primary-100/50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-5 h-5 bg-primary-100 text-primary-700 rounded-md flex items-center justify-center text-[10px] font-bold">D</span>
+                          <h4 className="text-xs font-semibold text-text-primary">Data</h4>
                         </div>
-                      ))}
+                        <p className="text-xs text-text-secondary leading-relaxed">{note.data}</p>
+                      </div>
+                      <div className="bg-accent-50/50 rounded-xl p-3 border border-accent-100/50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-5 h-5 bg-accent-100 text-accent-700 rounded-md flex items-center justify-center text-[10px] font-bold">A</span>
+                          <h4 className="text-xs font-semibold text-text-primary">Action</h4>
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed">{note.action}</p>
+                      </div>
+                      <div className="bg-warn-50/50 rounded-xl p-3 border border-warn-100/50">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-5 h-5 bg-warn-100 text-[#92400e] rounded-md flex items-center justify-center text-[10px] font-bold">R</span>
+                          <h4 className="text-xs font-semibold text-text-primary">Response</h4>
+                        </div>
+                        <p className="text-xs text-text-secondary leading-relaxed">{note.response}</p>
+                      </div>
                     </div>
                   )}
                 </div>
