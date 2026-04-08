@@ -90,7 +90,7 @@ export default function ProgressNotesTab({ patient }) {
       </div>
 
       {/* Modal Form */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="New Progress Note" wide>
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="New Progress Note" wide footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">Save Note</button></div>}>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Note Type</label>
@@ -128,10 +128,6 @@ export default function ProgressNotesTab({ patient }) {
             ))}
           </div>
         )}
-        <div className="flex justify-end gap-2 mt-5">
-          <button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
-          <button onClick={handleSave} className="btn-primary py-2 text-xs">Save Note</button>
-        </div>
       </Modal>
 
       {/* Notes List */}

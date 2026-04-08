@@ -123,7 +123,8 @@ export default function AssessmentsTab({ patient }) {
       </div>
 
       {/* Modal - Template Picker or Form */}
-      <Modal open={showForm} onClose={() => { setShowForm(false); setSelectedTemplate(null); }} title={selectedTemplate ? selectedTemplate.name : 'New Assessment'} wide>
+      <Modal open={showForm} onClose={() => { setShowForm(false); setSelectedTemplate(null); }} title={selectedTemplate ? selectedTemplate.name : 'New Assessment'} wide
+        footer={selectedTemplate ? <div className="flex justify-end gap-2"><button onClick={() => { setShowForm(false); setSelectedTemplate(null); }} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSaveAssessment} disabled={!allAnswered} className={`btn-primary py-2 text-xs ${!allAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}><CheckCircleIcon className="w-4 h-4 inline mr-1" />Save Assessment</button></div> : null}>
         {!selectedTemplate ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {assessmentTemplates.map((template) => (
@@ -166,12 +167,6 @@ export default function AssessmentsTab({ patient }) {
                 </div>
               </div>
             )}
-            <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => { setShowForm(false); setSelectedTemplate(null); }} className="btn-secondary py-2 text-xs">Cancel</button>
-              <button onClick={handleSaveAssessment} disabled={!allAnswered} className={`btn-primary py-2 text-xs ${!allAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <CheckCircleIcon className="w-4 h-4 inline mr-1" />Save Assessment
-              </button>
-            </div>
           </>
         )}
       </Modal>

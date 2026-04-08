@@ -92,7 +92,7 @@ export default function AdmissionsTab({ patient }) {
       </div>
 
       {/* Modal Form */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Admission">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Admission" footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">Save Admission</button></div>}>
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Facility</label>
@@ -122,10 +122,6 @@ export default function AdmissionsTab({ patient }) {
               <option>ICU</option><option>Telemetry</option><option>Med-Surg</option><option>Observation</option><option>Surgical</option>
             </select>
           </div>
-        </div>
-        <div className="flex justify-end gap-2 mt-5">
-          <button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
-          <button onClick={handleSave} className="btn-primary py-2 text-xs">Save Admission</button>
         </div>
       </Modal>
 

@@ -22,6 +22,10 @@ export default function CarePlanTab({ patient }) {
   const [expandedGoals, setExpandedGoals] = useState(new Set());
   const [saveCount, setSaveCount] = useState(0);
 
+  // Detail modal state
+  const [detailStatus, setDetailStatus] = useState('');
+  const [detailNewInterventions, setDetailNewInterventions] = useState(['']);
+
   // Form state
   const [formConcern, setFormConcern] = useState('');
   const [formDesc, setFormDesc] = useState('');
@@ -62,6 +66,8 @@ export default function CarePlanTab({ patient }) {
 
   const openGoalDetail = (goal) => {
     setSelectedGoal(goal);
+    setDetailStatus(goal.status || 'Not Started');
+    setDetailNewInterventions(['']);
     setShowGoalModal(true);
   };
 
@@ -198,9 +204,31 @@ export default function CarePlanTab({ patient }) {
       )}
 
       {/* Add/View Goal Modal */}
-      <Modal open={showGoalModal} onClose={() => setShowGoalModal(false)} title={selectedGoal ? 'Goal Details' : 'Add Care Plan Goal'} wide>
+      <Modal open={showGoalModal} onClose={() => setShowGoalModal(false)} title={selectedGoal ? 'Goal Details' : 'Add Care Plan Goal'} wide
+        footer={selectedGoal ? (
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowGoalModal(false)} className="btn-secondary py-2 text-xs">Close</button>
+            <button onClick={() => {
+              addPatientEntry(patient.id, 'carePlanGoals', {
+                healthConcern: selectedGoal.healthConcern || '',
+                description: selectedGoal.description,
+                status: detailStatus,
+                targetDate: selectedGoal.targetDate || '',
+                interventions: [...(selectedGoal.interventions || []), ...detailNewInterventions.filter(i => i.trim())],
+                note: 'Updated via goal detail',
+              });
+              setSaveCount(c => c + 1);
+              setShowGoalModal(false);
+            }} className="btn-primary py-2 text-xs">Save Changes</button>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowGoalModal(false)} className="btn-secondary py-2 text-xs">Cancel</button>
+            <button onClick={saveGoal} disabled={!formDesc} className={`btn-primary py-2 text-xs ${!formDesc ? 'opacity-50 cursor-not-allowed' : ''}`}>Save Goal</button>
+          </div>
+        )}>
         {selectedGoal ? (
-          /* View existing goal */
+          /* View & edit existing goal */
           <div className="space-y-4">
             {selectedGoal.healthConcern && (
               <div className="bg-danger-50 rounded-lg p-3 border border-danger-100">
@@ -209,16 +237,20 @@ export default function CarePlanTab({ patient }) {
               </div>
             )}
             <div className="bg-primary-50 rounded-lg p-3 border border-primary-100">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-[10px] font-semibold text-primary-600 uppercase tracking-wider">Goal</p>
-                <span className={`badge border text-[10px] ${(goalStatusConfig[selectedGoal.status] || goalStatusConfig['Not Started']).color}`}>{selectedGoal.status}</span>
-              </div>
+              <p className="text-[10px] font-semibold text-primary-600 uppercase tracking-wider mb-1">Goal</p>
               <p className="text-sm text-primary-800">{selectedGoal.description}</p>
               <p className="text-[11px] text-primary-500 mt-1">Target: {selectedGoal.targetDate || 'Not set'}</p>
+              <div className="mt-2">
+                <label className="text-[10px] font-medium text-primary-600 mb-0.5 block">Update Status</label>
+                <select className="input-field py-1.5 text-xs" value={detailStatus} onChange={e => setDetailStatus(e.target.value)}>
+                  {goalStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
             </div>
-            {(selectedGoal.interventions || []).length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-text-secondary mb-2">Interventions</p>
+            {/* Existing interventions */}
+            <div>
+              <p className="text-xs font-semibold text-text-secondary mb-2">Current Interventions</p>
+              {(selectedGoal.interventions || []).length > 0 ? (
                 <div className="space-y-1.5">
                   {selectedGoal.interventions.map((iv, i) => (
                     <div key={i} className="flex items-start gap-2 bg-accent-50 rounded-lg p-2.5 border border-accent-100 text-xs text-text-secondary">
@@ -227,8 +259,25 @@ export default function CarePlanTab({ patient }) {
                     </div>
                   ))}
                 </div>
+              ) : (
+                <p className="text-xs text-text-muted">No interventions documented</p>
+              )}
+            </div>
+            {/* Add new interventions */}
+            <div>
+              <p className="text-xs font-semibold text-text-secondary mb-2">Add New Interventions</p>
+              <div className="space-y-1.5">
+                {detailNewInterventions.map((iv, idx) => (
+                  <div key={idx} className="flex gap-1.5">
+                    <input type="text" className="input-field py-1.5 text-xs flex-1" placeholder={`New intervention...`} value={iv} onChange={e => { const u = [...detailNewInterventions]; u[idx] = e.target.value; setDetailNewInterventions(u); }} />
+                    {detailNewInterventions.length > 1 && (
+                      <button onClick={() => { const u = [...detailNewInterventions]; u.splice(idx, 1); setDetailNewInterventions(u); }} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={() => setDetailNewInterventions([...detailNewInterventions, ''])} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer"><PlusIcon className="w-3 h-3" /> Add intervention</button>
               </div>
-            )}
+            </div>
           </div>
         ) : (
           /* Add new goal form */
@@ -288,10 +337,6 @@ export default function CarePlanTab({ patient }) {
               <input type="text" className="input-field py-1.5 text-xs" placeholder="e.g. Transportation, health literacy" value={formBarriers} onChange={e => setFormBarriers(e.target.value)} />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowGoalModal(false)} className="btn-secondary py-2 text-xs">Cancel</button>
-              <button onClick={saveGoal} disabled={!formDesc} className={`btn-primary py-2 text-xs ${!formDesc ? 'opacity-50 cursor-not-allowed' : ''}`}>Save Goal</button>
-            </div>
           </div>
         )}
       </Modal>

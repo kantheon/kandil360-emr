@@ -82,7 +82,7 @@ export default function CommunicationsTab({ patient }) {
       </div>
 
       {/* Modal Form */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Log Communication" wide>
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Log Communication" wide footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">Save</button></div>}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Direction</label><select value={direction} onChange={e => setDirection(e.target.value)} className="input-field py-2 text-xs"><option>Outbound</option><option>Inbound</option></select></div>
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Method</label><select value={method} onChange={e => setMethod(e.target.value)} className="input-field py-2 text-xs"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option></select></div>
@@ -96,10 +96,6 @@ export default function CommunicationsTab({ patient }) {
             <div><label className="text-xs font-medium text-text-secondary mb-1 block">Outcome</label><input type="text" className="input-field py-2 text-xs" placeholder="Result" value={outcome} onChange={e => setOutcome(e.target.value)} /></div>
             <div><label className="text-xs font-medium text-text-secondary mb-1 block">Follow-up</label><input type="date" className="input-field py-2 text-xs" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} /></div>
           </div>
-        </div>
-        <div className="flex justify-end gap-2">
-          <button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
-          <button onClick={handleSave} className="btn-primary py-2 text-xs">Save</button>
         </div>
       </Modal>
 

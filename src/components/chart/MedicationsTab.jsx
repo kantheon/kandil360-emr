@@ -54,7 +54,7 @@ export default function MedicationsTab({ patient }) {
       </div>
 
       {/* Modal Form */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Medication">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Medication" footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">Save Medication</button></div>}>
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Medication Name</label>
@@ -74,10 +74,6 @@ export default function MedicationsTab({ patient }) {
             <label className="text-xs font-medium text-text-secondary mb-1 block">Prescriber</label>
             <input type="text" className="input-field py-2 text-xs" placeholder="Prescriber name" value={medPrescriber} onChange={e => setMedPrescriber(e.target.value)} />
           </div>
-        </div>
-        <div className="flex justify-end gap-2 mt-5">
-          <button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
-          <button onClick={handleSave} className="btn-primary py-2 text-xs">Save Medication</button>
         </div>
       </Modal>
 

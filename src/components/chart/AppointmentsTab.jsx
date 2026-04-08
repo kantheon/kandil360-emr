@@ -89,7 +89,7 @@ export default function AppointmentsTab({ patient }) {
       </div>
 
       {/* Modal Form */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Appointment">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Appointment" footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">Save Appointment</button></div>}>
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Appointment Type</label>
@@ -118,10 +118,6 @@ export default function AppointmentsTab({ patient }) {
             <label className="text-xs font-medium text-text-secondary mb-1 block">Location</label>
             <input type="text" className="input-field py-2 text-xs" placeholder="Clinic or address" value={apptLocation} onChange={e => setApptLocation(e.target.value)} />
           </div>
-        </div>
-        <div className="flex justify-end gap-2 mt-5">
-          <button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
-          <button onClick={handleSave} className="btn-primary py-2 text-xs">Save Appointment</button>
         </div>
       </Modal>
 
