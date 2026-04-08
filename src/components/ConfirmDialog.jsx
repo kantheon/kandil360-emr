@@ -1,8 +1,9 @@
+import { createPortal } from 'react-dom';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 export default function ConfirmDialog({ open, onClose, onConfirm, title, message }) {
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
@@ -20,6 +21,7 @@ export default function ConfirmDialog({ open, onClose, onConfirm, title, message
           <button onClick={() => { onConfirm(); onClose(); }} className="px-4 py-2 bg-danger-500 text-white rounded-xl text-xs font-semibold hover:bg-danger-600 transition-colors cursor-pointer">Delete</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
