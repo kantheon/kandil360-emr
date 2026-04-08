@@ -2,14 +2,20 @@ import { useState } from 'react';
 import {
   FlagIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon,
   ArrowPathIcon, PlusIcon, TrashIcon, ChevronDownIcon, ChevronUpIcon,
-  PencilSquareIcon
+  PencilSquareIcon, DocumentPlusIcon, CalendarIcon
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
 import ConfirmDialog from '../ConfirmDialog';
 import { carePlanLibrary } from '../../data/carePlanLibrary';
 import { useData } from '../../contexts/DataContext';
+import { getPatientEntries } from '../../data/localStore';
 
 const goalStatuses = ['Not Started','Initiated','In Progress','On Track','Met','Not Met','Deferred'];
+const understandingLevels = ['Verbalizes Understanding', 'Partial Understanding', 'Does Not Understand', 'Unable to Assess'];
+const participationLevels = ['Willing & Active', 'Willing but Limited', 'Reluctant', 'Refuses'];
+const abilityLevels = ['Independent', 'Needs Assistance', 'Dependent', 'Unable'];
+const goalEvaluations = ['Met', 'Partially Met', 'Not Met', 'Revised', 'Continued'];
+const barrierTypes = ['None','Financial','Physical','Cognitive','Social/Emotional','Transportation','Health Literacy','Language','Housing','Caregiver Burden','Other'];
 const goalStatusConfig = {
   'Met': { color: 'bg-accent-100 text-accent-700 border-accent-200', icon: CheckCircleIcon, iconColor: 'text-accent-500' },
   'On Track': { color: 'bg-primary-100 text-primary-700 border-primary-200', icon: ArrowPathIcon, iconColor: 'text-primary-500' },
@@ -28,6 +34,17 @@ export default function CarePlanTab({ patient }) {
   const [detailStatus, setDetailStatus] = useState('');
   const [detailCheckedInterventions, setDetailCheckedInterventions] = useState(new Set());
   const [detailCustomInterventions, setDetailCustomInterventions] = useState(['']);
+
+  // Progress entry state
+  const [showProgressForm, setShowProgressForm] = useState(false);
+  const [progressStatus, setProgressStatus] = useState('In Progress');
+  const [progressUnderstanding, setProgressUnderstanding] = useState('');
+  const [progressParticipation, setProgressParticipation] = useState('');
+  const [progressAbility, setProgressAbility] = useState('');
+  const [progressEvaluation, setProgressEvaluation] = useState('');
+  const [progressBarrier, setProgressBarrier] = useState('None');
+  const [progressNote, setProgressNote] = useState('');
+  const [progressNextReview, setProgressNextReview] = useState('');
 
   // Form state
   const [formConcern, setFormConcern] = useState('');
@@ -59,7 +76,51 @@ export default function CarePlanTab({ patient }) {
     setDetailStatus(goal.status || 'Not Started');
     setDetailCheckedInterventions(new Set());
     setDetailCustomInterventions(['']);
+    setShowProgressForm(false);
+    resetProgressForm();
     setShowGoalModal(true);
+  };
+
+  const resetProgressForm = () => {
+    setProgressStatus('In Progress');
+    setProgressUnderstanding('');
+    setProgressParticipation('');
+    setProgressAbility('');
+    setProgressEvaluation('');
+    setProgressBarrier('None');
+    setProgressNote('');
+    setProgressNextReview('');
+  };
+
+  const saveProgressEntry = () => {
+    if (!selectedGoal) return;
+    addEntry(patient.id, 'carePlanProgress', {
+      goalId: selectedGoal.id,
+      goalDescription: selectedGoal.description,
+      healthConcern: selectedGoal.healthConcern || '',
+      status: progressStatus,
+      understanding: progressUnderstanding,
+      participation: progressParticipation,
+      ability: progressAbility,
+      goalEvaluation: progressEvaluation,
+      barrier: progressBarrier,
+      note: progressNote,
+      nextReviewDate: progressNextReview,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    });
+    // Also update the goal status if changed
+    if (progressStatus !== selectedGoal.status && isEditable(selectedGoal.id)) {
+      updateEntry(patient.id, 'carePlanGoals', selectedGoal.id, { status: progressStatus });
+    }
+    setShowProgressForm(false);
+    resetProgressForm();
+  };
+
+  // Get progress entries for a specific goal
+  const getGoalProgressEntries = (goalId) => {
+    const all = getPatientEntries(patient.id, 'carePlanProgress');
+    return all.filter(e => e.goalId === goalId).reverse();
   };
 
   const toggleDetailIntervention = (iv) => {
@@ -243,9 +304,20 @@ export default function CarePlanTab({ patient }) {
                       <p className="text-xs text-text-secondary">{goal.barriers}</p>
                     </div>
                   )}
-                  <button onClick={() => openGoalDetail(goal)} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700">
-                    <PencilSquareIcon className="w-3.5 h-3.5" /> View / Add Entry
-                  </button>
+                  {(() => {
+                    const progressCount = getGoalProgressEntries(goal.id).length;
+                    return (
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => openGoalDetail(goal)} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700">
+                          <DocumentPlusIcon className="w-3.5 h-3.5" /> Progress Entries
+                          {progressCount > 0 && <span className="badge badge-info text-[9px] ml-1">{progressCount}</span>}
+                        </button>
+                        <button onClick={() => { openGoalDetail(goal); setTimeout(() => setShowProgressForm(true), 100); }} className="text-xs text-accent-600 font-medium flex items-center gap-1 cursor-pointer hover:text-accent-700">
+                          <PlusIcon className="w-3.5 h-3.5" /> New Entry
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -273,10 +345,22 @@ export default function CarePlanTab({ patient }) {
       {/* Add/View Goal Modal */}
       <Modal open={showGoalModal} onClose={() => setShowGoalModal(false)} title={selectedGoal ? 'Goal Details' : 'Add Care Plan Goal'} wide
         footer={selectedGoal ? (
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setShowGoalModal(false)} className="btn-secondary py-2 text-xs">Close</button>
-            <button onClick={handleSaveGoalDetail} className="btn-primary py-2 text-xs">Save Changes</button>
-          </div>
+          showProgressForm ? (
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowProgressForm(false)} className="btn-secondary py-2 text-xs">Cancel</button>
+              <button onClick={saveProgressEntry} className="btn-primary py-2 text-xs">Save Progress Entry</button>
+            </div>
+          ) : (
+            <div className="flex justify-between">
+              <button onClick={() => setShowProgressForm(true)} className="btn-primary py-2 text-xs flex items-center gap-1.5">
+                <DocumentPlusIcon className="w-4 h-4" /> Add Progress Entry
+              </button>
+              <div className="flex gap-2">
+                <button onClick={() => setShowGoalModal(false)} className="btn-secondary py-2 text-xs">Close</button>
+                <button onClick={handleSaveGoalDetail} className="btn-primary py-2 text-xs">Save Changes</button>
+              </div>
+            </div>
+          )
         ) : (
           <div className="flex justify-end gap-2">
             <button onClick={() => setShowGoalModal(false)} className="btn-secondary py-2 text-xs">Cancel</button>
@@ -284,71 +368,195 @@ export default function CarePlanTab({ patient }) {
           </div>
         )}>
         {selectedGoal ? (
-          /* View & edit existing goal */
           <div className="space-y-4">
-            {selectedGoal.healthConcern && (
-              <div className="bg-danger-50 rounded-lg p-3 border border-danger-100">
-                <p className="text-[10px] font-semibold text-danger-600 uppercase tracking-wider">Health Concern</p>
-                <p className="text-sm font-medium text-danger-700 mt-0.5">{selectedGoal.healthConcern}</p>
-              </div>
-            )}
-            <div className="bg-primary-50 rounded-lg p-3 border border-primary-100">
-              <p className="text-[10px] font-semibold text-primary-600 uppercase tracking-wider mb-1">Goal</p>
-              <p className="text-sm text-primary-800">{selectedGoal.description}</p>
-              <p className="text-[11px] text-primary-500 mt-1">Target: {selectedGoal.targetDate || 'Not set'}</p>
-              <div className="mt-2">
-                <label className="text-[10px] font-medium text-primary-600 mb-0.5 block">Update Status</label>
-                <select className="input-field py-1.5 text-xs" value={detailStatus} onChange={e => setDetailStatus(e.target.value)}>
-                  {goalStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+            {/* Goal header */}
+            <div className="flex gap-3">
+              {selectedGoal.healthConcern && (
+                <div className="flex-1 bg-danger-50 rounded-lg p-3 border border-danger-100">
+                  <p className="text-[10px] font-semibold text-danger-600 uppercase tracking-wider">Health Concern</p>
+                  <p className="text-xs font-medium text-danger-700 mt-0.5">{selectedGoal.healthConcern}</p>
+                </div>
+              )}
+              <div className="flex-1 bg-primary-50 rounded-lg p-3 border border-primary-100">
+                <p className="text-[10px] font-semibold text-primary-600 uppercase tracking-wider">Goal</p>
+                <p className="text-xs text-primary-800 mt-0.5">{selectedGoal.description}</p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className={`badge border text-[9px] ${(goalStatusConfig[selectedGoal.status] || goalStatusConfig['Not Started']).color}`}>{selectedGoal.status}</span>
+                  <span className="text-[10px] text-primary-500">Target: {selectedGoal.targetDate || 'Not set'}</span>
+                </div>
               </div>
             </div>
-            {/* Existing interventions */}
-            <div>
-              <p className="text-xs font-semibold text-text-secondary mb-2">Current Interventions</p>
-              {(selectedGoal.interventions || []).length > 0 ? (
-                <div className="space-y-1.5">
+
+            {/* Interventions (collapsed) */}
+            {(selectedGoal.interventions || []).length > 0 && (
+              <details className="group">
+                <summary className="text-xs font-semibold text-text-secondary cursor-pointer flex items-center gap-1">
+                  <ChevronDownIcon className="w-3.5 h-3.5 group-open:rotate-180 transition-transform" />
+                  Interventions ({selectedGoal.interventions.length})
+                </summary>
+                <div className="space-y-1 mt-2">
                   {selectedGoal.interventions.map((iv, i) => (
-                    <div key={i} className="flex items-start gap-2 bg-accent-50 rounded-lg p-2.5 border border-accent-100 text-xs text-text-secondary">
-                      <span className="w-5 h-5 bg-accent-100 text-accent-700 rounded text-[10px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                    <div key={i} className="flex items-start gap-2 bg-accent-50 rounded-lg p-2 border border-accent-100 text-[11px] text-text-secondary">
+                      <span className="w-4 h-4 bg-accent-100 text-accent-700 rounded text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
                       {iv}
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-xs text-text-muted">No interventions documented</p>
-              )}
-            </div>
-            {/* Add new interventions - checkboxes from library + custom */}
-            <div>
-              <p className="text-xs font-semibold text-text-secondary mb-2">Add New Interventions</p>
-              {(() => {
-                const available = getLibraryInterventionsForGoal(selectedGoal);
-                return available.length > 0 ? (
-                  <div className="space-y-1.5 mb-3">
-                    <p className="text-[10px] text-text-muted font-medium">Select from library:</p>
-                    {available.map((iv, i) => (
-                      <label key={i} className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-all text-xs ${detailCheckedInterventions.has(iv) ? 'bg-accent-50 border border-accent-200' : 'bg-white border border-border-light hover:bg-surface-hover'}`}>
-                        <input type="checkbox" checked={detailCheckedInterventions.has(iv)} onChange={() => toggleDetailIntervention(iv)} className="accent-accent-600 mt-0.5 shrink-0" />
-                        <span className="text-text-secondary">{iv}</span>
-                      </label>
-                    ))}
+              </details>
+            )}
+
+            {/* Progress Entry Form */}
+            {showProgressForm ? (
+              <div className="bg-primary-50/30 rounded-xl p-4 border border-primary-200 space-y-3 animate-fade-in">
+                <p className="text-xs font-semibold text-text-primary">New Progress Entry</p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Goal Status</label>
+                    <select className="input-field py-1.5 text-xs" value={progressStatus} onChange={e => setProgressStatus(e.target.value)}>
+                      {goalStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
                   </div>
-                ) : null;
-              })()}
-              <p className="text-[10px] text-text-muted font-medium mb-1.5">Add custom:</p>
-              <div className="space-y-1.5">
-                {detailCustomInterventions.map((iv, idx) => (
-                  <div key={idx} className="flex gap-1.5">
-                    <input type="text" className="input-field py-1.5 text-xs flex-1" placeholder="Custom intervention..." value={iv} onChange={e => { const u = [...detailCustomInterventions]; u[idx] = e.target.value; setDetailCustomInterventions(u); }} />
-                    {detailCustomInterventions.length > 1 && (
-                      <button onClick={() => { const u = [...detailCustomInterventions]; u.splice(idx, 1); setDetailCustomInterventions(u); }} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
-                    )}
+                  <div>
+                    <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Goal Evaluation</label>
+                    <select className="input-field py-1.5 text-xs" value={progressEvaluation} onChange={e => setProgressEvaluation(e.target.value)}>
+                      <option value="">Select...</option>
+                      {goalEvaluations.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
                   </div>
-                ))}
-                <button onClick={() => setDetailCustomInterventions([...detailCustomInterventions, ''])} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer"><PlusIcon className="w-3 h-3" /> Add custom intervention</button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Patient Understanding</label>
+                    <select className="input-field py-1.5 text-xs" value={progressUnderstanding} onChange={e => setProgressUnderstanding(e.target.value)}>
+                      <option value="">Select...</option>
+                      {understandingLevels.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Participation</label>
+                    <select className="input-field py-1.5 text-xs" value={progressParticipation} onChange={e => setProgressParticipation(e.target.value)}>
+                      <option value="">Select...</option>
+                      {participationLevels.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Physical Ability</label>
+                    <select className="input-field py-1.5 text-xs" value={progressAbility} onChange={e => setProgressAbility(e.target.value)}>
+                      <option value="">Select...</option>
+                      {abilityLevels.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Barriers Identified</label>
+                    <select className="input-field py-1.5 text-xs" value={progressBarrier} onChange={e => setProgressBarrier(e.target.value)}>
+                      {barrierTypes.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Next Review Date</label>
+                    <input type="date" className="input-field py-1.5 text-xs" value={progressNextReview} onChange={e => setProgressNextReview(e.target.value)} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Progress Note</label>
+                  <textarea className="textarea-field text-xs !min-h-[60px]" rows={3} placeholder="Document progress, observations, interventions performed..." value={progressNote} onChange={e => setProgressNote(e.target.value)} />
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Progress History Timeline */}
+                <div>
+                  <p className="text-xs font-semibold text-text-secondary mb-2 flex items-center gap-1.5">
+                    <CalendarIcon className="w-3.5 h-3.5" /> Progress History
+                  </p>
+                  {(() => {
+                    const entries = getGoalProgressEntries(selectedGoal.id);
+                    if (entries.length === 0) return <p className="text-xs text-text-muted py-3 text-center">No progress entries yet. Click "Add Progress Entry" to document.</p>;
+                    return (
+                      <div className="space-y-2">
+                        {entries.map((entry, i) => (
+                          <div key={entry.id || i} className="bg-surface-alt rounded-lg p-3 border border-border-light">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`badge border text-[9px] ${(goalStatusConfig[entry.status] || goalStatusConfig['Not Started']).color}`}>{entry.status}</span>
+                                {entry.goalEvaluation && <span className="badge badge-neutral text-[9px]">{entry.goalEvaluation}</span>}
+                              </div>
+                              <span className="text-[10px] text-text-muted">{entry.date} {entry.time}</span>
+                            </div>
+                            {entry.note && <p className="text-xs text-text-secondary mb-2">{entry.note}</p>}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              {entry.understanding && (
+                                <div><p className="text-[9px] text-text-muted uppercase">Understanding</p><p className="text-[11px] font-medium text-text-primary">{entry.understanding}</p></div>
+                              )}
+                              {entry.participation && (
+                                <div><p className="text-[9px] text-text-muted uppercase">Participation</p><p className="text-[11px] font-medium text-text-primary">{entry.participation}</p></div>
+                              )}
+                              {entry.ability && (
+                                <div><p className="text-[9px] text-text-muted uppercase">Ability</p><p className="text-[11px] font-medium text-text-primary">{entry.ability}</p></div>
+                              )}
+                              {entry.barrier && entry.barrier !== 'None' && (
+                                <div><p className="text-[9px] text-text-muted uppercase">Barrier</p><p className="text-[11px] font-medium text-warn-500">{entry.barrier}</p></div>
+                              )}
+                            </div>
+                            {entry.nextReviewDate && (
+                              <p className="text-[10px] text-text-muted mt-2">Next review: {entry.nextReviewDate}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Update status + Add interventions (collapsed) */}
+                <details className="group">
+                  <summary className="text-xs font-semibold text-text-secondary cursor-pointer flex items-center gap-1">
+                    <ChevronDownIcon className="w-3.5 h-3.5 group-open:rotate-180 transition-transform" />
+                    Update Status & Interventions
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Update Status</label>
+                      <select className="input-field py-1.5 text-xs" value={detailStatus} onChange={e => setDetailStatus(e.target.value)}>
+                        {goalStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    {(() => {
+                      const available = getLibraryInterventionsForGoal(selectedGoal);
+                      return available.length > 0 ? (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] text-text-muted font-medium">Add interventions from library:</p>
+                          {available.map((iv, i) => (
+                            <label key={i} className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-all text-xs ${detailCheckedInterventions.has(iv) ? 'bg-accent-50 border border-accent-200' : 'bg-white border border-border-light hover:bg-surface-hover'}`}>
+                              <input type="checkbox" checked={detailCheckedInterventions.has(iv)} onChange={() => toggleDetailIntervention(iv)} className="accent-accent-600 mt-0.5 shrink-0" />
+                              <span className="text-text-secondary">{iv}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] text-text-muted font-medium">Custom interventions:</p>
+                      {detailCustomInterventions.map((iv, idx) => (
+                        <div key={idx} className="flex gap-1.5">
+                          <input type="text" className="input-field py-1.5 text-xs flex-1" placeholder="Custom intervention..." value={iv} onChange={e => { const u = [...detailCustomInterventions]; u[idx] = e.target.value; setDetailCustomInterventions(u); }} />
+                          {detailCustomInterventions.length > 1 && (
+                            <button onClick={() => { const u = [...detailCustomInterventions]; u.splice(idx, 1); setDetailCustomInterventions(u); }} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
+                          )}
+                        </div>
+                      ))}
+                      <button onClick={() => setDetailCustomInterventions([...detailCustomInterventions, ''])} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer"><PlusIcon className="w-3 h-3" /> Add</button>
+                    </div>
+                  </div>
+                </details>
+              </>
+            )}
           </div>
         ) : (
           /* Add new goal form */
