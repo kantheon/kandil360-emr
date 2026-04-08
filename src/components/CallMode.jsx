@@ -152,97 +152,91 @@ function AppointmentForm({ entry, onChange, disabled }) {
 
 function GoalForm({ entry, onChange, disabled, patient }) {
   const existingGoals = patient?.carePlan?.goals || [];
-  const isExisting = entry.linkToExisting && entry.existingGoalId;
-  const [showLibrary, setShowLibrary] = useState(false);
+  const selectedLib = carePlanLibrary.find(c => c.healthConcern === entry.healthConcern);
+  const selectedGoal = selectedLib?.goals.find(g => g.description === entry.description);
 
-  const applyTemplate = (item, goal) => {
-    onChange({
-      ...entry,
-      linkToExisting: false,
-      healthConcern: item.healthConcern,
-      description: goal.description,
-      interventions: [...goal.interventions],
-      status: 'Not Started',
-      targetDate: '',
-    });
-    setShowLibrary(false);
+  const handleConcernChange = (concern) => {
+    const lib = carePlanLibrary.find(c => c.healthConcern === concern);
+    onChange({ ...entry, healthConcern: concern, description: '', interventions: [''], status: 'Not Started', targetDate: '' });
+  };
+
+  const handleGoalSelect = (goalDesc) => {
+    const lib = carePlanLibrary.find(c => c.healthConcern === entry.healthConcern);
+    const goal = lib?.goals.find(g => g.description === goalDesc);
+    onChange({ ...entry, description: goalDesc, interventions: goal ? [...goal.interventions] : [''], status: 'Not Started' });
   };
 
   return (
     <div className="space-y-3">
-      {/* Mode toggle */}
-      {!disabled && (
+      {/* Existing goal toggle */}
+      {!disabled && existingGoals.length > 0 && (
         <div className="flex gap-1.5">
-          <button onClick={()=>{onChange({...entry,linkToExisting:false,existingGoalId:''});setShowLibrary(false);}}
-            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${!entry.linkToExisting&&!showLibrary?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
-            New
+          <button onClick={() => onChange({ ...entry, linkToExisting: false, existingGoalId: '' })}
+            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${!entry.linkToExisting ? 'bg-primary-50 border-primary-300 text-primary-700' : 'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
+            New Entry
           </button>
-          <button onClick={()=>{setShowLibrary(true);onChange({...entry,linkToExisting:false});}}
-            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${showLibrary?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
-            From Library
-          </button>
-          <button onClick={()=>{onChange({...entry,linkToExisting:true});setShowLibrary(false);}}
-            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${entry.linkToExisting?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
-            Existing Goal
+          <button onClick={() => onChange({ ...entry, linkToExisting: true })}
+            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${entry.linkToExisting ? 'bg-primary-50 border-primary-300 text-primary-700' : 'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
+            Add to Existing
           </button>
         </div>
       )}
 
-      {/* Library picker */}
-      {showLibrary && !disabled && (
-        <div className="space-y-2 max-h-[300px] overflow-y-auto border border-border-light rounded-lg p-2 bg-surface-alt">
-          {carePlanLibrary.map(item => (
-            <div key={item.id}>
-              <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider px-1 py-1">{item.healthConcern}</p>
-              {item.goals.map(g => (
-                <button key={g.id} onClick={() => applyTemplate(item, g)}
-                  className="w-full text-left p-2 rounded-lg hover:bg-primary-50 hover:border-primary-200 border border-transparent transition-all cursor-pointer mb-1">
-                  <p className="text-[11px] font-medium text-text-primary">{g.description}</p>
-                  <p className="text-[10px] text-text-muted">{g.interventions.length} interventions &middot; {g.timeframe}</p>
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Add to existing goal */}
+      {/* Existing goal selector */}
       {entry.linkToExisting && !disabled && (
         <div>
           <label className="text-[10px] font-medium text-text-secondary mb-1 block">Select Existing Goal</label>
-          <div className="space-y-1.5">
-            {existingGoals.map(g => (
-              <button key={g.id} onClick={()=>onChange({...entry,existingGoalId:g.id,healthConcern:g.description})}
-                className={`w-full text-left p-2 rounded-lg border text-xs transition-all cursor-pointer ${entry.existingGoalId===g.id?'bg-primary-50 border-primary-300':'border-border-light hover:bg-surface-alt'}`}>
-                <span className="font-medium text-text-primary">{g.description}</span>
-                <span className={`badge text-[9px] ml-2 ${g.status==='Met'?'badge-active':g.status==='On Track'?'badge-info':'badge-warning'}`}>{g.status}</span>
-              </button>
-            ))}
-          </div>
+          <select className="input-field py-1.5 text-xs" value={entry.existingGoalId || ''} onChange={e => {
+            const g = existingGoals.find(x => x.id === e.target.value);
+            onChange({ ...entry, existingGoalId: e.target.value, healthConcern: g?.description || '' });
+          }}>
+            <option value="">Choose...</option>
+            {existingGoals.map(g => <option key={g.id} value={g.id}>{g.description} ({g.status})</option>)}
+          </select>
         </div>
       )}
 
-      {/* Health Concern */}
+      {/* Health Concern dropdown */}
       <div className="bg-surface-alt rounded-lg p-3 border border-border-light">
         <label className="text-[10px] font-semibold text-text-secondary mb-1 block flex items-center gap-1">
           <span className="w-4 h-4 bg-danger-100 text-danger-600 rounded text-[9px] font-bold flex items-center justify-center">H</span>
           Health Concern
         </label>
-        <input disabled={disabled || isExisting} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="e.g. Uncontrolled Type 2 Diabetes" value={entry.healthConcern||''} onChange={e=>onChange({...entry,healthConcern:e.target.value})} />
+        {!disabled && !entry.linkToExisting ? (
+          <>
+            <select className="input-field py-1.5 text-xs mb-1.5" value={entry.healthConcern || ''} onChange={e => handleConcernChange(e.target.value)}>
+              <option value="">Select health concern...</option>
+              {carePlanLibrary.map(c => <option key={c.id} value={c.healthConcern}>{c.healthConcern}</option>)}
+            </select>
+            <input type="text" className="input-field py-1.5 text-xs" placeholder="Or type custom concern..." value={entry.healthConcern || ''} onChange={e => onChange({ ...entry, healthConcern: e.target.value })} />
+          </>
+        ) : (
+          <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.healthConcern || ''} onChange={e => onChange({ ...entry, healthConcern: e.target.value })} />
+        )}
       </div>
 
-      {/* Goal */}
+      {/* Goal dropdown */}
       <div className="bg-surface-alt rounded-lg p-3 border border-border-light">
         <label className="text-[10px] font-semibold text-text-secondary mb-1 block flex items-center gap-1">
           <span className="w-4 h-4 bg-primary-100 text-primary-700 rounded text-[9px] font-bold flex items-center justify-center">G</span>
           Goal
         </label>
-        <textarea disabled={disabled} className="textarea-field text-xs !min-h-[40px] disabled:opacity-60" rows={2} placeholder="e.g. Maintain fasting BG < 130 mg/dL" value={entry.description||''} onChange={e=>onChange({...entry,description:e.target.value})} />
+        {!disabled && selectedLib ? (
+          <>
+            <select className="input-field py-1.5 text-xs mb-1.5" value={entry.description || ''} onChange={e => handleGoalSelect(e.target.value)}>
+              <option value="">Select goal...</option>
+              {selectedLib.goals.map(g => <option key={g.id} value={g.description}>{g.description}</option>)}
+            </select>
+            <textarea className="textarea-field text-xs !min-h-[40px]" rows={2} placeholder="Or edit goal text..." value={entry.description || ''} onChange={e => onChange({ ...entry, description: e.target.value })} />
+          </>
+        ) : (
+          <textarea disabled={disabled} className="textarea-field text-xs !min-h-[40px] disabled:opacity-60" rows={2} placeholder="Describe goal..." value={entry.description || ''} onChange={e => onChange({ ...entry, description: e.target.value })} />
+        )}
         <div className="grid grid-cols-2 gap-2 mt-2">
-          <select disabled={disabled} className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.status||'Not Started'} onChange={e=>onChange({...entry,status:e.target.value})}>
-            {goalStatuses.map(s=><option key={s} value={s}>{s}</option>)}
+          <select disabled={disabled} className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.status || 'Not Started'} onChange={e => onChange({ ...entry, status: e.target.value })}>
+            {goalStatuses.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <input disabled={disabled} type="date" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="Target date" value={entry.targetDate||''} onChange={e=>onChange({...entry,targetDate:e.target.value})} />
+          <input disabled={disabled} type="date" className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.targetDate || ''} onChange={e => onChange({ ...entry, targetDate: e.target.value })} />
         </div>
       </div>
 
@@ -255,18 +249,16 @@ function GoalForm({ entry, onChange, disabled, patient }) {
         <div className="space-y-2">
           {(entry.interventions || ['']).map((iv, idx) => (
             <div key={idx} className="flex gap-1.5">
-              <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60 flex-1" placeholder={`Intervention ${idx+1}...`} value={iv} onChange={e=>{
-                const updated = [...(entry.interventions||[''])];
-                updated[idx] = e.target.value;
-                onChange({...entry, interventions: updated});
+              <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60 flex-1" placeholder={`Intervention ${idx + 1}...`} value={iv} onChange={e => {
+                const u = [...(entry.interventions || [''])]; u[idx] = e.target.value; onChange({ ...entry, interventions: u });
               }} />
-              {!disabled && (entry.interventions||['']).length > 1 && (
-                <button onClick={()=>{const u=[...(entry.interventions||[''])];u.splice(idx,1);onChange({...entry,interventions:u});}} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
+              {!disabled && (entry.interventions || ['']).length > 1 && (
+                <button onClick={() => { const u = [...(entry.interventions || [''])]; u.splice(idx, 1); onChange({ ...entry, interventions: u }); }} className="p-1 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3.5 h-3.5" /></button>
               )}
             </div>
           ))}
           {!disabled && (
-            <button onClick={()=>onChange({...entry,interventions:[...(entry.interventions||['']),''] })} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700">
+            <button onClick={() => onChange({ ...entry, interventions: [...(entry.interventions || ['']), ''] })} className="text-[10px] text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700">
               <PlusIcon className="w-3 h-3" /> Add intervention
             </button>
           )}
@@ -276,7 +268,7 @@ function GoalForm({ entry, onChange, disabled, patient }) {
       {/* Barriers */}
       <div>
         <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Barriers (optional)</label>
-        <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="e.g. Transportation, health literacy" value={entry.barriers||''} onChange={e=>onChange({...entry,barriers:e.target.value})} />
+        <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="e.g. Transportation, health literacy" value={entry.barriers || ''} onChange={e => onChange({ ...entry, barriers: e.target.value })} />
       </div>
     </div>
   );
@@ -312,11 +304,26 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   const [entries,setEntries] = useState([]);
   const [expandedEntries,setExpandedEntries] = useState(new Set());
   const [showAddMenu,setShowAddMenu] = useState(false);
+  const [saveCount,setSaveCount] = useState(0);
 
   useEffect(()=>{
     if(!minimized){document.body.style.overflow='hidden';}else{document.body.style.overflow='';}
     return ()=>{document.body.style.overflow='';};
   },[minimized]);
+
+  // Merge seed data with localStorage so left panel updates on save
+  const localAppts = getPatientEntries(patient.id, 'appointments');
+  const localGoals = getPatientEntries(patient.id, 'carePlanGoals');
+  const mergedAppointments = [
+    ...mergedAppointments,
+    ...localAppts.map(a => ({ date: a.slot?.split(' ')[0] || 'TBD', time: a.slot?.split(' ').slice(1).join(' ') || 'TBD', provider: a.provider || '', type: a.type || 'Appointment', location: a.location || '', status: 'Scheduled' }))
+  ];
+  const mergedGoals = [
+    ...mergedGoals,
+    ...localGoals.map((g,i) => ({ id: `local-g-${i}`, description: g.description || g.healthConcern || 'New Goal', status: g.status || 'Not Started', targetDate: g.targetDate || '' }))
+  ];
+  // Force re-read on save by depending on saveCount
+  void saveCount;
 
   const addEntry=(type)=>{const id=Date.now();setEntries(p=>[...p,{id,type,data:{},saved:false}]);setExpandedEntries(p=>new Set([...p,id]));setShowAddMenu(false);};
   const updateEntry=(id,data)=>setEntries(p=>p.map(e=>e.id===id?{...e,data}:e));
@@ -324,12 +331,12 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   const saveEntry=(id)=>{
     const entry = entries.find(e=>e.id===id);
     if(entry) {
-      // Persist to localStorage
       const typeMap = { note:'progressNotes', comm:'communications', assessment:'assessments', appointment:'appointments', goal:'carePlanGoals' };
       addPatientEntry(patient.id, typeMap[entry.type] || entry.type, entry.data);
     }
     setEntries(p=>p.map(e=>e.id===id?{...e,saved:true,savedAt:new Date().toLocaleTimeString()}:e));
     setExpandedEntries(p=>{const n=new Set(p);n.delete(id);return n;});
+    setSaveCount(c=>c+1);
   };
   const toggleEntry=(id)=>setExpandedEntries(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
 
@@ -413,9 +420,9 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
             ))}</div>
           </InfoCard>
 
-          <InfoCard title="Appointments" icon={CalendarDaysIcon} count={patient.appointments.length} defaultOpen
+          <InfoCard title="Appointments" icon={CalendarDaysIcon} count={mergedAppointments.length} defaultOpen
             action={<button onClick={()=>addEntry('appointment')} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700"><PlusIcon className="w-3.5 h-3.5" />Schedule Appointment</button>}>
-            <div className="space-y-2">{patient.appointments.map((a,i)=>(
+            <div className="space-y-2">{mergedAppointments.map((a,i)=>(
               <div key={i} className="flex items-center gap-3 bg-surface-alt rounded-lg p-2.5">
                 <div className="bg-primary-50 rounded-md p-1.5 text-center min-w-[40px]">
                   <p className="text-[9px] text-primary-500 font-medium">{new Date(a.date+'T00:00:00').toLocaleDateString('en-US',{month:'short'})}</p>
@@ -427,7 +434,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                 </div>
                 <span className="badge badge-active text-[9px]">{a.status}</span>
               </div>
-            ))}{patient.appointments.length===0&&<p className="text-xs text-text-muted">None</p>}</div>
+            ))}{mergedAppointments.length===0&&<p className="text-xs text-text-muted">None</p>}</div>
           </InfoCard>
 
           <InfoCard title="Admissions" icon={BuildingOffice2Icon} count={patient.admissions.length}>
@@ -439,10 +446,10 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
             ))}{patient.admissions.length===0&&<p className="text-xs text-text-muted">No admissions</p>}</div>
           </InfoCard>
 
-          <InfoCard title="Care Plan" icon={FlagIcon} count={patient.carePlan.goals.length}
+          <InfoCard title="Care Plan" icon={FlagIcon} count={mergedGoals.length}
             action={<button onClick={()=>addEntry('goal')} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700"><PlusIcon className="w-3.5 h-3.5" />Add Goal</button>}>
             <div className="space-y-2">
-              {patient.carePlan.goals.map(g=>(<div key={g.id} className="flex items-start justify-between gap-2"><p className="text-xs text-text-secondary">{g.description}</p><span className={`badge text-[9px] shrink-0 ${g.status==='Met'?'badge-active':g.status==='On Track'?'badge-info':'badge-warning'}`}>{g.status}</span></div>))}
+              {mergedGoals.map(g=>(<div key={g.id} className="flex items-start justify-between gap-2"><p className="text-xs text-text-secondary">{g.description}</p><span className={`badge text-[9px] shrink-0 ${g.status==='Met'?'badge-active':g.status==='On Track'?'badge-info':'badge-warning'}`}>{g.status}</span></div>))}
               {patient.carePlan.barriers.length>0&&(<div className="pt-2 mt-2 border-t border-border-light"><p className="text-[10px] font-semibold text-text-secondary mb-1">Barriers</p>{patient.carePlan.barriers.map((b,i)=>(<div key={i} className="flex items-start gap-1.5 text-[11px] text-text-muted"><ExclamationCircleIcon className="w-3 h-3 text-warn-500 shrink-0 mt-0.5" />{b}</div>))}</div>)}
             </div>
           </InfoCard>
