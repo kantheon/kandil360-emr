@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   PencilSquareIcon,
+  TrashIcon,
   DocumentTextIcon,
   PhoneIcon,
   VideoCameraIcon,
@@ -10,15 +11,19 @@ import {
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
-import { addPatientEntry, getPatientEntries } from '../../data/localStore';
+import ConfirmDialog from '../ConfirmDialog';
+import { useData } from '../../contexts/DataContext';
 
 const methodIcons = { 'Phone': PhoneIcon, 'Video': VideoCameraIcon, 'In-Person': UserIcon };
 
 export default function ProgressNotesTab({ patient }) {
+  const { addEntry, updateEntry, deleteEntry, isEditable } = useData();
+
   const [showForm, setShowForm] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [noteType, setNoteType] = useState('SOAP');
   const [search, setSearch] = useState('');
-  const [_saveCount, setSaveCount] = useState(0);
   const [contactMethod, setContactMethod] = useState('Phone');
   const [datetime, setDatetime] = useState('');
   const [subjective, setSubjective] = useState('');
@@ -29,8 +34,7 @@ export default function ProgressNotesTab({ patient }) {
   const [action, setAction] = useState('');
   const [response, setResponse] = useState('');
 
-  const localEntries = getPatientEntries(patient.id, 'progressNotes');
-  const allNotes = [...localEntries.slice().reverse(), ...patient.progressNotes];
+  const allNotes = patient.progressNotes || [];
 
   const [expandedNotes, setExpandedNotes] = useState(new Set(allNotes.length > 0 ? [allNotes[0].id] : []));
 
@@ -46,11 +50,32 @@ export default function ProgressNotesTab({ patient }) {
     setData(''); setAction(''); setResponse('');
   };
 
+  const openAddForm = () => {
+    setEditingEntry(null);
+    resetForm();
+    setShowForm(true);
+  };
+
+  const openEditForm = (note) => {
+    setEditingEntry(note);
+    setNoteType(note.type || 'SOAP');
+    setContactMethod(note.contactMethod || 'Phone');
+    setDatetime('');
+    setSubjective(note.subjective || '');
+    setObjective(note.objective || '');
+    setAssessment(note.assessment || '');
+    setPlan(note.plan || '');
+    setData(note.data || '');
+    setAction(note.action || '');
+    setResponse(note.response || '');
+    setShowForm(true);
+  };
+
   const handleSave = () => {
     const dt = datetime || new Date().toISOString().slice(0, 16);
     const dateStr = new Date(dt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const timeStr = new Date(dt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const entry = {
+    const entryData = {
       date: dateStr,
       time: timeStr,
       author: 'Current User',
@@ -60,10 +85,19 @@ export default function ProgressNotesTab({ patient }) {
         ? { subjective, objective, assessment, plan }
         : { data, action, response }),
     };
-    addPatientEntry(patient.id, 'progressNotes', entry);
+    if (editingEntry) {
+      updateEntry(patient.id, 'progressNotes', editingEntry.id, entryData);
+    } else {
+      addEntry(patient.id, 'progressNotes', entryData);
+    }
     setShowForm(false);
+    setEditingEntry(null);
     resetForm();
-    setSaveCount(c => c + 1);
+  };
+
+  const handleDelete = (noteId) => {
+    deleteEntry(patient.id, 'progressNotes', noteId);
+    setDeleteTarget(null);
   };
 
   const filtered = allNotes.filter(note => {
@@ -83,14 +117,14 @@ export default function ProgressNotesTab({ patient }) {
           </div>
           <button onClick={expandAll} className="btn-secondary py-2 px-3 text-xs hidden sm:block">Expand</button>
           <button onClick={collapseAll} className="btn-secondary py-2 px-3 text-xs hidden sm:block">Collapse</button>
-          <button onClick={() => setShowForm(true)} className="btn-primary py-2 flex items-center gap-1.5">
+          <button onClick={openAddForm} className="btn-primary py-2 flex items-center gap-1.5">
             <PencilSquareIcon className="w-4 h-4" /><span className="hidden sm:inline">New Note</span>
           </button>
         </div>
       </div>
 
       {/* Modal Form */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="New Progress Note" wide footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">Save Note</button></div>}>
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={editingEntry ? 'Edit Progress Note' : 'New Progress Note'} wide footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">{editingEntry ? 'Update Note' : 'Save Note'}</button></div>}>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Note Type</label>
@@ -130,11 +164,21 @@ export default function ProgressNotesTab({ patient }) {
         )}
       </Modal>
 
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => handleDelete(deleteTarget)}
+        title="Delete Progress Note"
+        message="Are you sure you want to delete this progress note? This action cannot be undone."
+      />
+
       {/* Notes List */}
       <div className="space-y-2">
         {filtered.map((note) => {
           const MethodIcon = methodIcons[note.contactMethod] || DocumentTextIcon;
           const isOpen = expandedNotes.has(note.id);
+          const canEdit = isEditable(note.id);
           return (
             <div key={note.id} className="card p-0 overflow-hidden">
               <button onClick={() => toggleNote(note.id)} className="w-full flex items-center gap-3 px-4 lg:px-5 py-3 bg-surface-alt hover:bg-surface-hover transition-colors cursor-pointer text-left">
@@ -147,6 +191,26 @@ export default function ProgressNotesTab({ patient }) {
                   </div>
                   <p className="text-xs text-text-muted mt-0.5 truncate">{note.author}</p>
                 </div>
+                {canEdit && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); openEditForm(note); }}
+                      className="p-1.5 rounded-lg hover:bg-primary-100 transition-colors cursor-pointer"
+                      title="Edit note"
+                    >
+                      <PencilSquareIcon className="w-3.5 h-3.5 text-primary-500" />
+                    </span>
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(note.id); }}
+                      className="p-1.5 rounded-lg hover:bg-danger-100 transition-colors cursor-pointer"
+                      title="Delete note"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5 text-danger-500" />
+                    </span>
+                  </div>
+                )}
                 {isOpen ? <ChevronUpIcon className="w-4 h-4 text-text-muted shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-text-muted shrink-0" />}
               </button>
               {isOpen && (

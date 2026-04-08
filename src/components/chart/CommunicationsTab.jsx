@@ -4,21 +4,27 @@ import {
   PhoneArrowUpRightIcon,
   PhoneArrowDownLeftIcon,
   PlusIcon,
+  PencilSquareIcon,
+  TrashIcon,
   UserIcon,
   MagnifyingGlassIcon,
   ChevronDownIcon,
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
-import { addPatientEntry, getPatientEntries } from '../../data/localStore';
+import ConfirmDialog from '../ConfirmDialog';
+import { useData } from '../../contexts/DataContext';
 
 const directionIcons = { 'Outbound': PhoneArrowUpRightIcon, 'Inbound': PhoneArrowDownLeftIcon };
 const methodColors = { 'Phone': 'badge-info', 'Fax': 'badge-neutral', 'Email': 'badge-active', 'In-Person': 'badge-warning' };
 
 export default function CommunicationsTab({ patient }) {
+  const { addEntry, updateEntry, deleteEntry, isEditable } = useData();
+
   const [showForm, setShowForm] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [search, setSearch] = useState('');
-  const [_saveCount, setSaveCount] = useState(0);
   const [direction, setDirection] = useState('Outbound');
   const [method, setMethod] = useState('Phone');
   const [contactPerson, setContactPerson] = useState('');
@@ -28,8 +34,7 @@ export default function CommunicationsTab({ patient }) {
   const [outcome, setOutcome] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
 
-  const localEntries = getPatientEntries(patient.id, 'communications');
-  const allComms = [...localEntries.slice().reverse(), ...patient.communications];
+  const allComms = patient.communications || [];
 
   const [expandedComms, setExpandedComms] = useState(new Set(allComms.length > 0 ? [allComms[0].id] : []));
 
@@ -40,9 +45,28 @@ export default function CommunicationsTab({ patient }) {
     setSubject(''); setSummary(''); setOutcome(''); setFollowUpDate('');
   };
 
+  const openAddForm = () => {
+    setEditingEntry(null);
+    resetForm();
+    setShowForm(true);
+  };
+
+  const openEditForm = (comm) => {
+    setEditingEntry(comm);
+    setDirection(comm.direction || 'Outbound');
+    setMethod(comm.method || 'Phone');
+    setContactPerson(comm.contactPerson || '');
+    setContactRole(comm.contactRole || 'Patient');
+    setSubject(comm.subject || '');
+    setSummary(comm.summary || '');
+    setOutcome(comm.outcome || '');
+    setFollowUpDate(comm.followUpDate || '');
+    setShowForm(true);
+  };
+
   const handleSave = () => {
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    const entry = {
+    const entryData = {
       date: today,
       direction,
       method,
@@ -54,10 +78,19 @@ export default function CommunicationsTab({ patient }) {
       followUpNeeded: !!followUpDate,
       followUpDate: followUpDate || null,
     };
-    addPatientEntry(patient.id, 'communications', entry);
+    if (editingEntry) {
+      updateEntry(patient.id, 'communications', editingEntry.id, entryData);
+    } else {
+      addEntry(patient.id, 'communications', entryData);
+    }
     setShowForm(false);
+    setEditingEntry(null);
     resetForm();
-    setSaveCount(c => c + 1);
+  };
+
+  const handleDelete = (commId) => {
+    deleteEntry(patient.id, 'communications', commId);
+    setDeleteTarget(null);
   };
 
   const filtered = allComms.filter(comm => {
@@ -75,14 +108,14 @@ export default function CommunicationsTab({ patient }) {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input type="text" placeholder="Search comms..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-9 py-2 text-xs" />
           </div>
-          <button onClick={() => setShowForm(true)} className="btn-primary py-2 flex items-center gap-1.5">
+          <button onClick={openAddForm} className="btn-primary py-2 flex items-center gap-1.5">
             <PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">Log Comm</span>
           </button>
         </div>
       </div>
 
       {/* Modal Form */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Log Communication" wide footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">Save</button></div>}>
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={editingEntry ? 'Edit Communication' : 'Log Communication'} wide footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">{editingEntry ? 'Update' : 'Save'}</button></div>}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Direction</label><select value={direction} onChange={e => setDirection(e.target.value)} className="input-field py-2 text-xs"><option>Outbound</option><option>Inbound</option></select></div>
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Method</label><select value={method} onChange={e => setMethod(e.target.value)} className="input-field py-2 text-xs"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option></select></div>
@@ -99,11 +132,21 @@ export default function CommunicationsTab({ patient }) {
         </div>
       </Modal>
 
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => handleDelete(deleteTarget)}
+        title="Delete Communication"
+        message="Are you sure you want to delete this communication log? This action cannot be undone."
+      />
+
       {/* List */}
       <div className="space-y-2">
         {filtered.map((comm) => {
           const DirIcon = directionIcons[comm.direction] || ChatBubbleLeftRightIcon;
           const isOpen = expandedComms.has(comm.id);
+          const canEdit = isEditable(comm.id);
           return (
             <div key={comm.id} className="card p-0 overflow-hidden">
               <button onClick={() => toggleComm(comm.id)} className="w-full flex items-center gap-3 px-4 lg:px-5 py-3 hover:bg-surface-alt transition-colors cursor-pointer text-left">
@@ -120,6 +163,26 @@ export default function CommunicationsTab({ patient }) {
                   </div>
                 </div>
                 {comm.followUpNeeded && <span className="badge badge-warning text-[10px] shrink-0 hidden sm:inline-flex">F/U {comm.followUpDate}</span>}
+                {canEdit && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); openEditForm(comm); }}
+                      className="p-1.5 rounded-lg hover:bg-primary-100 transition-colors cursor-pointer"
+                      title="Edit communication"
+                    >
+                      <PencilSquareIcon className="w-3.5 h-3.5 text-primary-500" />
+                    </span>
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(comm.id); }}
+                      className="p-1.5 rounded-lg hover:bg-danger-100 transition-colors cursor-pointer"
+                      title="Delete communication"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5 text-danger-500" />
+                    </span>
+                  </div>
+                )}
                 {isOpen ? <ChevronUpIcon className="w-4 h-4 text-text-muted shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-text-muted shrink-0" />}
               </button>
               {isOpen && (

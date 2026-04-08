@@ -5,8 +5,9 @@ import {
   PencilSquareIcon
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
+import ConfirmDialog from '../ConfirmDialog';
 import { carePlanLibrary } from '../../data/carePlanLibrary';
-import { addPatientEntry, getPatientEntries } from '../../data/localStore';
+import { useData } from '../../contexts/DataContext';
 
 const goalStatuses = ['Not Started','Initiated','In Progress','On Track','Met','Not Met','Deferred'];
 const goalStatusConfig = {
@@ -17,10 +18,11 @@ const goalStatusConfig = {
 };
 
 export default function CarePlanTab({ patient }) {
+  const { addEntry, updateEntry, deleteEntry, isEditable } = useData();
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [expandedGoals, setExpandedGoals] = useState(new Set());
-  const [saveCount, setSaveCount] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Detail modal state
   const [detailStatus, setDetailStatus] = useState('');
@@ -36,22 +38,7 @@ export default function CarePlanTab({ patient }) {
   const [formCustomInterventions, setFormCustomInterventions] = useState(['']);
   const [formBarriers, setFormBarriers] = useState('');
 
-  const localGoals = getPatientEntries(patient.id, 'carePlanGoals');
-  void saveCount;
-
-  const allGoals = [
-    ...patient.carePlan.goals.map(g => ({ ...g, source: 'seed' })),
-    ...localGoals.map((g, i) => ({
-      id: g.id || `local-g-${i}`,
-      description: g.description || '',
-      status: g.status || 'Not Started',
-      targetDate: g.targetDate || '',
-      healthConcern: g.healthConcern || '',
-      interventions: g.interventions || [],
-      barriers: g.barriers || '',
-      source: 'local'
-    }))
-  ];
+  const allGoals = patient.carePlan.goals;
 
   const toggleGoal = (id) => setExpandedGoals(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
@@ -117,7 +104,7 @@ export default function CarePlanTab({ patient }) {
       ...Array.from(formCheckedInterventions),
       ...formCustomInterventions.filter(i => i.trim()),
     ];
-    addPatientEntry(patient.id, 'carePlanGoals', {
+    addEntry(patient.id, 'carePlanGoals', {
       healthConcern: formConcern,
       description: formDesc,
       status: formStatus,
@@ -125,8 +112,41 @@ export default function CarePlanTab({ patient }) {
       interventions: allInterventions,
       barriers: formBarriers,
     });
-    setSaveCount(c => c + 1);
     setShowGoalModal(false);
+  };
+
+  const handleSaveGoalDetail = () => {
+    if (!selectedGoal) return;
+    const updatedInterventions = [
+      ...(selectedGoal.interventions || []),
+      ...Array.from(detailCheckedInterventions),
+      ...detailCustomInterventions.filter(i => i.trim()),
+    ];
+    if (isEditable(selectedGoal.id)) {
+      // Update existing local entry
+      updateEntry(patient.id, 'carePlanGoals', selectedGoal.id, {
+        status: detailStatus,
+        interventions: updatedInterventions,
+      });
+    } else {
+      // For seed entries, add a new local entry with updated data
+      addEntry(patient.id, 'carePlanGoals', {
+        healthConcern: selectedGoal.healthConcern || '',
+        description: selectedGoal.description,
+        status: detailStatus,
+        targetDate: selectedGoal.targetDate || '',
+        interventions: updatedInterventions,
+        note: 'Updated via goal detail',
+      });
+    }
+    setShowGoalModal(false);
+  };
+
+  const handleDelete = () => {
+    if (deleteTarget) {
+      deleteEntry(patient.id, 'carePlanGoals', deleteTarget.id);
+      setDeleteTarget(null);
+    }
   };
 
   const met = allGoals.filter(g => g.status === 'Met').length;
@@ -162,6 +182,15 @@ export default function CarePlanTab({ patient }) {
         </div>
       </div>
 
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Goal"
+        message="Are you sure you want to delete this care plan goal? This action cannot be undone."
+      />
+
       {/* Goals list - clickable & expandable */}
       <div className="space-y-2">
         {allGoals.map((goal) => {
@@ -169,6 +198,7 @@ export default function CarePlanTab({ patient }) {
           const StatusIcon = config.icon;
           const isOpen = expandedGoals.has(goal.id);
           const interventions = goal.interventions || [];
+          const editable = isEditable(goal.id);
 
           return (
             <div key={goal.id} className="card p-0 overflow-hidden">
@@ -182,6 +212,11 @@ export default function CarePlanTab({ patient }) {
                   <p className="text-[11px] text-text-muted mt-0.5">Target: {goal.targetDate || 'Not set'}</p>
                 </div>
                 <span className={`badge border text-[10px] shrink-0 ${config.color}`}>{goal.status}</span>
+                {editable && (
+                  <span onClick={e => { e.stopPropagation(); setDeleteTarget(goal); }} className="p-1.5 rounded-lg hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer transition-colors shrink-0">
+                    <TrashIcon className="w-3.5 h-3.5" />
+                  </span>
+                )}
                 {isOpen ? <ChevronUpIcon className="w-4 h-4 text-text-muted shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-text-muted shrink-0" />}
               </button>
 
@@ -240,18 +275,7 @@ export default function CarePlanTab({ patient }) {
         footer={selectedGoal ? (
           <div className="flex justify-end gap-2">
             <button onClick={() => setShowGoalModal(false)} className="btn-secondary py-2 text-xs">Close</button>
-            <button onClick={() => {
-              addPatientEntry(patient.id, 'carePlanGoals', {
-                healthConcern: selectedGoal.healthConcern || '',
-                description: selectedGoal.description,
-                status: detailStatus,
-                targetDate: selectedGoal.targetDate || '',
-                interventions: [...(selectedGoal.interventions || []), ...Array.from(detailCheckedInterventions), ...detailCustomInterventions.filter(i => i.trim())],
-                note: 'Updated via goal detail',
-              });
-              setSaveCount(c => c + 1);
-              setShowGoalModal(false);
-            }} className="btn-primary py-2 text-xs">Save Changes</button>
+            <button onClick={handleSaveGoalDetail} className="btn-primary py-2 text-xs">Save Changes</button>
           </div>
         ) : (
           <div className="flex justify-end gap-2">

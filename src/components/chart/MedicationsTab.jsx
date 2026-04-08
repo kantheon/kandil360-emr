@@ -3,39 +3,69 @@ import {
   BeakerIcon,
   ShieldExclamationIcon,
   CheckBadgeIcon,
-  PlusIcon
+  PlusIcon,
+  PencilSquareIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
-import { addPatientEntry, getPatientEntries } from '../../data/localStore';
+import ConfirmDialog from '../ConfirmDialog';
+import { useData } from '../../contexts/DataContext';
 
 export default function MedicationsTab({ patient }) {
+  const { addEntry, updateEntry, deleteEntry, isEditable } = useData();
+
   const [showForm, setShowForm] = useState(false);
-  const [_saveCount, setSaveCount] = useState(0);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [medName, setMedName] = useState('');
   const [medDose, setMedDose] = useState('');
   const [medFrequency, setMedFrequency] = useState('Daily');
   const [medPrescriber, setMedPrescriber] = useState('');
   const [medStatus, setMedStatus] = useState('Active');
 
-  const localEntries = getPatientEntries(patient.id, 'medications');
-  const allMedications = [...localEntries.slice().reverse().map(e => ({ ...e, status: e.status || 'Active' })), ...patient.medications];
+  const allMedications = patient.medications || [];
 
   const resetForm = () => {
     setMedName(''); setMedDose(''); setMedFrequency('Daily'); setMedPrescriber(''); setMedStatus('Active');
   };
 
+  const openAddForm = () => {
+    setEditingEntry(null);
+    resetForm();
+    setShowForm(true);
+  };
+
+  const openEditForm = (med) => {
+    setEditingEntry(med);
+    setMedName(med.name || '');
+    setMedDose(med.dose || '');
+    setMedFrequency(med.frequency || 'Daily');
+    setMedPrescriber(med.prescriber || '');
+    setMedStatus(med.status || 'Active');
+    setShowForm(true);
+  };
+
   const handleSave = () => {
-    const entry = {
+    const entryData = {
       name: medName,
       dose: medDose,
       frequency: medFrequency,
       prescriber: medPrescriber,
       status: medStatus,
     };
-    addPatientEntry(patient.id, 'medications', entry);
+    if (editingEntry) {
+      updateEntry(patient.id, 'medications', editingEntry.id, entryData);
+    } else {
+      addEntry(patient.id, 'medications', entryData);
+    }
     setShowForm(false);
+    setEditingEntry(null);
     resetForm();
-    setSaveCount(c => c + 1);
+  };
+
+  const handleDiscontinue = (medId) => {
+    updateEntry(patient.id, 'medications', medId, { status: 'Discontinued' });
+    setDeleteTarget(null);
   };
 
   const activeMeds = allMedications.filter(m => m.status === 'Active');
@@ -48,13 +78,13 @@ export default function MedicationsTab({ patient }) {
           <h2 className="text-lg font-semibold text-text-primary">Medications</h2>
           <p className="text-xs text-text-muted mt-0.5">{activeMeds.length} active medications</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary py-2 flex items-center gap-1.5">
+        <button onClick={openAddForm} className="btn-primary py-2 flex items-center gap-1.5">
           <PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">Add Medication</span>
         </button>
       </div>
 
       {/* Modal Form */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Medication" footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">Save Medication</button></div>}>
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={editingEntry ? 'Edit Medication' : 'Add Medication'} footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">{editingEntry ? 'Update Medication' : 'Save Medication'}</button></div>}>
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Medication Name</label>
@@ -74,8 +104,25 @@ export default function MedicationsTab({ patient }) {
             <label className="text-xs font-medium text-text-secondary mb-1 block">Prescriber</label>
             <input type="text" className="input-field py-2 text-xs" placeholder="Prescriber name" value={medPrescriber} onChange={e => setMedPrescriber(e.target.value)} />
           </div>
+          {editingEntry && (
+            <div>
+              <label className="text-xs font-medium text-text-secondary mb-1 block">Status</label>
+              <select value={medStatus} onChange={e => setMedStatus(e.target.value)} className="input-field py-2 text-xs">
+                <option>Active</option><option>Discontinued</option><option>On Hold</option>
+              </select>
+            </div>
+          )}
         </div>
       </Modal>
+
+      {/* Discontinue Confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => handleDiscontinue(deleteTarget)}
+        title="Discontinue Medication"
+        message="Are you sure you want to discontinue this medication? It will be moved to the inactive list."
+      />
 
       {/* Allergies Alert */}
       {patient.allergies.length > 0 && (
@@ -114,26 +161,51 @@ export default function MedicationsTab({ patient }) {
           Active Medications
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {activeMeds.map((med, i) => (
-            <div key={i} className="card p-4 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-primary-600">Rx</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm font-semibold text-text-primary">{med.name}</h4>
-                  <span className="badge badge-active text-[11px]">{med.status}</span>
+          {activeMeds.map((med, i) => {
+            const canEdit = isEditable(med.id);
+            return (
+              <div key={med.id || i} className="card p-4 flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center shrink-0">
+                  <span className="text-xs font-bold text-primary-600">Rx</span>
                 </div>
-                <div className="mt-1.5 space-y-1">
-                  <div className="flex items-center gap-4 text-xs text-text-secondary">
-                    <span><span className="text-text-muted">Dose:</span> {med.dose}</span>
-                    <span><span className="text-text-muted">Freq:</span> {med.frequency}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-text-primary">{med.name}</h4>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {canEdit && (
+                        <>
+                          <span
+                            role="button"
+                            onClick={() => openEditForm(med)}
+                            className="p-1.5 rounded-lg hover:bg-primary-100 transition-colors cursor-pointer"
+                            title="Edit medication"
+                          >
+                            <PencilSquareIcon className="w-3.5 h-3.5 text-primary-500" />
+                          </span>
+                          <span
+                            role="button"
+                            onClick={() => setDeleteTarget(med.id)}
+                            className="p-1.5 rounded-lg hover:bg-danger-100 transition-colors cursor-pointer"
+                            title="Discontinue medication"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5 text-danger-500" />
+                          </span>
+                        </>
+                      )}
+                      <span className="badge badge-active text-[11px]">{med.status}</span>
+                    </div>
                   </div>
-                  <p className="text-xs text-text-muted">Prescribed by {med.prescriber}</p>
+                  <div className="mt-1.5 space-y-1">
+                    <div className="flex items-center gap-4 text-xs text-text-secondary">
+                      <span><span className="text-text-muted">Dose:</span> {med.dose}</span>
+                      <span><span className="text-text-muted">Freq:</span> {med.frequency}</span>
+                    </div>
+                    <p className="text-xs text-text-muted">Prescribed by {med.prescriber}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -143,7 +215,7 @@ export default function MedicationsTab({ patient }) {
           <h3 className="text-sm font-semibold text-text-secondary mb-3">Inactive / Discontinued</h3>
           <div className="space-y-2">
             {inactiveMeds.map((med, i) => (
-              <div key={i} className="card p-4 opacity-50 flex items-center gap-4">
+              <div key={med.id || i} className="card p-4 opacity-50 flex items-center gap-4">
                 <div className="w-8 h-8 rounded-lg bg-surface-alt flex items-center justify-center">
                   <span className="text-[11px] font-bold text-text-muted">Rx</span>
                 </div>

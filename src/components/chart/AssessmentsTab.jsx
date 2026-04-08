@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from '../Modal';
+import ConfirmDialog from '../ConfirmDialog';
 import {
   ClipboardDocumentCheckIcon,
   UserIcon,
@@ -10,10 +11,11 @@ import {
   MagnifyingGlassIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import { assessmentTemplates } from '../../data/assessmentTemplates';
-import { addPatientEntry, getPatientEntries } from '../../data/localStore';
+import { useData } from '../../contexts/DataContext';
 
 const statusColors = {
   'Completed': 'badge-active',
@@ -39,14 +41,14 @@ function getScoreResult(template, answers) {
 }
 
 export default function AssessmentsTab({ patient }) {
+  const { addEntry, deleteEntry, isEditable } = useData();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [formAnswers, setFormAnswers] = useState({});
-  const [_saveCount, setSaveCount] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const localEntries = getPatientEntries(patient.id, 'assessments');
-  const allAssessments = [...localEntries.slice().reverse(), ...patient.assessments];
+  const allAssessments = patient.assessments;
 
   const [expandedAssessments, setExpandedAssessments] = useState(new Set(allAssessments.length > 0 ? [allAssessments[0].id] : []));
 
@@ -80,11 +82,17 @@ export default function AssessmentsTab({ patient }) {
       functionalStatus: null,
       sdoh: null,
     };
-    addPatientEntry(patient.id, 'assessments', entry);
+    addEntry(patient.id, 'assessments', entry);
     setShowForm(false);
     setSelectedTemplate(null);
     setFormAnswers({});
-    setSaveCount(c => c + 1);
+  };
+
+  const handleDelete = () => {
+    if (deleteTarget) {
+      deleteEntry(patient.id, 'assessments', deleteTarget.id);
+      setDeleteTarget(null);
+    }
   };
 
   const filtered = allAssessments.filter(a => {
@@ -171,10 +179,20 @@ export default function AssessmentsTab({ patient }) {
         )}
       </Modal>
 
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Assessment"
+        message="Are you sure you want to delete this assessment? This action cannot be undone."
+      />
+
       {/* Existing Assessments - Collapsible */}
       <div className="space-y-2">
         {filtered.map((assessment) => {
           const isOpen = expandedAssessments.has(assessment.id);
+          const editable = isEditable(assessment.id);
           return (
             <div key={assessment.id} className="card p-0 overflow-hidden">
               <button
@@ -191,6 +209,11 @@ export default function AssessmentsTab({ patient }) {
                   </div>
                   <p className="text-xs text-text-muted mt-0.5">{assessment.author} &middot; {assessment.date}</p>
                 </div>
+                {editable && (
+                  <span onClick={e => { e.stopPropagation(); setDeleteTarget(assessment); }} className="p-1.5 rounded-lg hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer transition-colors shrink-0">
+                    <TrashIcon className="w-3.5 h-3.5" />
+                  </span>
+                )}
                 {isOpen ? <ChevronUpIcon className="w-4 h-4 text-text-muted shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-text-muted shrink-0" />}
               </button>
 

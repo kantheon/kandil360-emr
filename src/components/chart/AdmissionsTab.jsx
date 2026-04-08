@@ -6,10 +6,13 @@ import {
   MagnifyingGlassIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  PlusIcon
+  PlusIcon,
+  PencilSquareIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
-import { addPatientEntry, getPatientEntries } from '../../data/localStore';
+import ConfirmDialog from '../ConfirmDialog';
+import { useData } from '../../contexts/DataContext';
 
 const facilityTypeColors = {
   'Acute Care': 'badge-critical',
@@ -18,9 +21,11 @@ const facilityTypeColors = {
 };
 
 export default function AdmissionsTab({ patient }) {
+  const { addEntry, updateEntry, deleteEntry, isEditable } = useData();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [_saveCount, setSaveCount] = useState(0);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [facility, setFacility] = useState('');
   const [facilityType, setFacilityType] = useState('Acute Care');
   const [admitDate, setAdmitDate] = useState('');
@@ -28,8 +33,12 @@ export default function AdmissionsTab({ patient }) {
   const [attendingPhysician, setAttendingPhysician] = useState('');
   const [levelOfCare, setLevelOfCare] = useState('Med-Surg');
 
-  const localEntries = getPatientEntries(patient.id, 'admissions');
-  const allAdmissions = [...localEntries.slice().reverse().map(e => ({ ...e, dischargeDate: e.dischargeDate || null })), ...patient.admissions];
+  // Discharge modal state
+  const [dischargeTarget, setDischargeTarget] = useState(null);
+  const [dischargeDate, setDischargeDate] = useState('');
+  const [dischargeDisposition, setDischargeDisposition] = useState('Home');
+
+  const allAdmissions = patient.admissions;
 
   const [expandedAdms, setExpandedAdms] = useState(new Set(allAdmissions.map(a => a.id)));
 
@@ -43,6 +52,23 @@ export default function AdmissionsTab({ patient }) {
 
   const resetForm = () => {
     setFacility(''); setFacilityType('Acute Care'); setAdmitDate(''); setAdmitDiagnosis(''); setAttendingPhysician(''); setLevelOfCare('Med-Surg');
+    setEditingEntry(null);
+  };
+
+  const openAddModal = () => {
+    resetForm();
+    setShowForm(true);
+  };
+
+  const openEditModal = (adm) => {
+    setEditingEntry(adm);
+    setFacility(adm.facility || '');
+    setFacilityType(adm.facilityType || 'Acute Care');
+    setAdmitDate(adm.admitDate || '');
+    setAdmitDiagnosis(adm.admitDiagnosis || '');
+    setAttendingPhysician(adm.attendingPhysician || '');
+    setLevelOfCare(adm.levelOfCare || 'Med-Surg');
+    setShowForm(true);
   };
 
   const handleSave = () => {
@@ -53,12 +79,40 @@ export default function AdmissionsTab({ patient }) {
       admitDiagnosis,
       attendingPhysician,
       levelOfCare,
-      dischargeDate: null,
+      dischargeDate: editingEntry ? (editingEntry.dischargeDate || null) : null,
     };
-    addPatientEntry(patient.id, 'admissions', entry);
+    if (editingEntry) {
+      updateEntry(patient.id, 'admissions', editingEntry.id, entry);
+    } else {
+      addEntry(patient.id, 'admissions', entry);
+    }
     setShowForm(false);
     resetForm();
-    setSaveCount(c => c + 1);
+  };
+
+  const handleDelete = () => {
+    if (deleteTarget) {
+      deleteEntry(patient.id, 'admissions', deleteTarget.id);
+      setDeleteTarget(null);
+    }
+  };
+
+  const openDischargeModal = (adm) => {
+    setDischargeTarget(adm);
+    setDischargeDate('');
+    setDischargeDisposition('Home');
+  };
+
+  const handleDischarge = () => {
+    if (dischargeTarget && dischargeDate) {
+      const los = Math.ceil((new Date(dischargeDate) - new Date(dischargeTarget.admitDate)) / 86400000);
+      updateEntry(patient.id, 'admissions', dischargeTarget.id, {
+        dischargeDate,
+        dischargeDisposition,
+        lengthOfStay: los > 0 ? los : 1,
+      });
+      setDischargeTarget(null);
+    }
   };
 
   const current = allAdmissions.filter(a => !a.dischargeDate);
@@ -85,14 +139,14 @@ export default function AdmissionsTab({ patient }) {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input type="text" placeholder="Search admissions..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-9 py-2 text-xs" />
           </div>
-          <button onClick={() => setShowForm(true)} className="btn-primary py-2 flex items-center gap-1.5">
+          <button onClick={openAddModal} className="btn-primary py-2 flex items-center gap-1.5">
             <PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">Add Admission</span>
           </button>
         </div>
       </div>
 
-      {/* Modal Form */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Admission" footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">Save Admission</button></div>}>
+      {/* Add/Edit Modal Form */}
+      <Modal open={showForm} onClose={() => { setShowForm(false); resetForm(); }} title={editingEntry ? 'Edit Admission' : 'Add Admission'} footer={<div className="flex justify-end gap-2"><button onClick={() => { setShowForm(false); resetForm(); }} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">{editingEntry ? 'Update Admission' : 'Save Admission'}</button></div>}>
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1 block">Facility</label>
@@ -125,6 +179,50 @@ export default function AdmissionsTab({ patient }) {
         </div>
       </Modal>
 
+      {/* Discharge Modal */}
+      <Modal open={!!dischargeTarget} onClose={() => setDischargeTarget(null)} title="Discharge Patient" footer={
+        <div className="flex justify-end gap-2">
+          <button onClick={() => setDischargeTarget(null)} className="btn-secondary py-2 text-xs">Cancel</button>
+          <button onClick={handleDischarge} disabled={!dischargeDate} className={`btn-primary py-2 text-xs ${!dischargeDate ? 'opacity-50 cursor-not-allowed' : ''}`}>Confirm Discharge</button>
+        </div>
+      }>
+        <div className="space-y-3">
+          {dischargeTarget && (
+            <div className="bg-surface-alt rounded-lg p-3 border border-border-light">
+              <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Discharging from</p>
+              <p className="text-sm font-semibold text-text-primary mt-0.5">{dischargeTarget.facility}</p>
+              <p className="text-xs text-text-muted mt-0.5">Admitted {dischargeTarget.admitDate} &middot; {dischargeTarget.admitDiagnosis}</p>
+            </div>
+          )}
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Discharge Date</label>
+            <input type="date" className="input-field py-2 text-xs" value={dischargeDate} onChange={e => setDischargeDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Discharge Disposition</label>
+            <select value={dischargeDisposition} onChange={e => setDischargeDisposition(e.target.value)} className="input-field py-2 text-xs">
+              <option>Home</option>
+              <option>Home with Home Health</option>
+              <option>Skilled Nursing Facility</option>
+              <option>Inpatient Rehab</option>
+              <option>Long-term Acute Care</option>
+              <option>Hospice</option>
+              <option>Against Medical Advice</option>
+              <option>Expired</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Admission"
+        message="Are you sure you want to delete this admission record? This action cannot be undone."
+      />
+
       {/* Current */}
       {filteredCurrent.length > 0 && (
         <div>
@@ -135,6 +233,7 @@ export default function AdmissionsTab({ patient }) {
           <div className="space-y-2">
             {filteredCurrent.map((adm) => {
               const isOpen = expandedAdms.has(adm.id);
+              const editable = isEditable(adm.id);
               return (
                 <div key={adm.id} className="card p-0 overflow-hidden border-danger-200">
                   <button onClick={() => toggleAdm(adm.id)} className="w-full flex items-center gap-3 px-4 lg:px-5 py-3 bg-danger-50 hover:bg-danger-100/50 transition-colors cursor-pointer text-left">
@@ -144,6 +243,16 @@ export default function AdmissionsTab({ patient }) {
                       <div className="text-xs text-danger-500 mt-0.5">Admitted {adm.admitDate} &middot; {Math.ceil((new Date() - new Date(adm.admitDate)) / 86400000)} days</div>
                     </div>
                     <span className={`badge ${facilityTypeColors[adm.facilityType] || 'badge-neutral'} shrink-0`}>{adm.facilityType}</span>
+                    {editable && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span onClick={e => { e.stopPropagation(); openEditModal(adm); }} className="p-1.5 rounded-lg hover:bg-danger-100 text-danger-400 hover:text-danger-600 cursor-pointer transition-colors">
+                          <PencilSquareIcon className="w-3.5 h-3.5" />
+                        </span>
+                        <span onClick={e => { e.stopPropagation(); setDeleteTarget(adm); }} className="p-1.5 rounded-lg hover:bg-danger-100 text-danger-400 hover:text-danger-600 cursor-pointer transition-colors">
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </span>
+                      </div>
+                    )}
                     {isOpen ? <ChevronUpIcon className="w-4 h-4 text-danger-400 shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-danger-400 shrink-0" />}
                   </button>
                   {isOpen && (
@@ -156,6 +265,13 @@ export default function AdmissionsTab({ patient }) {
                           </div>
                         ))}
                       </div>
+                      {editable && (
+                        <div className="mt-3 pt-3 border-t border-danger-100">
+                          <button onClick={() => openDischargeModal(adm)} className="btn-primary py-2 text-xs flex items-center gap-1.5">
+                            <ArrowRightIcon className="w-3.5 h-3.5" /> Discharge Patient
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -172,6 +288,7 @@ export default function AdmissionsTab({ patient }) {
           <div className="space-y-2">
             {filteredPast.map((adm) => {
               const isOpen = expandedAdms.has(adm.id);
+              const editable = isEditable(adm.id);
               return (
                 <div key={adm.id} className="card p-0 overflow-hidden">
                   <button onClick={() => toggleAdm(adm.id)} className="w-full flex items-center gap-3 px-4 lg:px-5 py-3 bg-surface-alt hover:bg-surface-hover transition-colors cursor-pointer text-left">
@@ -183,6 +300,16 @@ export default function AdmissionsTab({ patient }) {
                       </div>
                       <div className="text-xs text-text-muted mt-0.5">{adm.admitDate} - {adm.dischargeDate} &middot; {adm.lengthOfStay}d &middot; {adm.admitDiagnosis}</div>
                     </div>
+                    {editable && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span onClick={e => { e.stopPropagation(); openEditModal(adm); }} className="p-1.5 rounded-lg hover:bg-primary-50 text-text-muted hover:text-primary-600 cursor-pointer transition-colors">
+                          <PencilSquareIcon className="w-3.5 h-3.5" />
+                        </span>
+                        <span onClick={e => { e.stopPropagation(); setDeleteTarget(adm); }} className="p-1.5 rounded-lg hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer transition-colors">
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </span>
+                      </div>
+                    )}
                     {isOpen ? <ChevronUpIcon className="w-4 h-4 text-text-muted shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-text-muted shrink-0" />}
                   </button>
                   {isOpen && (
