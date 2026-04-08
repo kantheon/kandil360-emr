@@ -41,6 +41,8 @@ export function DataProvider({ children }) {
       appointments: mergeEntries(seed.appointments, getPatientEntries(patientId, 'appointments')),
       admissions: mergeEntries(seed.admissions, getPatientEntries(patientId, 'admissions')),
       medications: mergeEntries(seed.medications, getPatientEntries(patientId, 'medications').map(m => ({ ...m, status: m.status || 'Active' }))),
+      authorizations: mergeEntries(seed.authorizations || [], getPatientEntries(patientId, 'authorizations')),
+      vitals: mergeEntries(seed.vitals || [], getPatientEntries(patientId, 'vitals')),
       carePlan: {
         ...seed.carePlan,
         goals: mergeEntries(

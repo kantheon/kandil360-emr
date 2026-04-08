@@ -12,7 +12,9 @@ import {
   BuildingOffice2Icon,
   ClipboardDocumentCheckIcon,
   FlagIcon,
-  BeakerIcon
+  BeakerIcon,
+  HeartIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import OverviewTab from '../components/chart/OverviewTab';
 import ProgressNotesTab from '../components/chart/ProgressNotesTab';
@@ -22,6 +24,8 @@ import AdmissionsTab from '../components/chart/AdmissionsTab';
 import AssessmentsTab from '../components/chart/AssessmentsTab';
 import CarePlanTab from '../components/chart/CarePlanTab';
 import MedicationsTab from '../components/chart/MedicationsTab';
+import VitalsTab from '../components/chart/VitalsTab';
+import AuthorizationsTab from '../components/chart/AuthorizationsTab';
 import CallMode from '../components/CallMode';
 
 const tabs = [
@@ -33,6 +37,8 @@ const tabs = [
   { id: 'assessments', label: 'Assessments', icon: ClipboardDocumentCheckIcon },
   { id: 'careplan', label: 'Care Plan', icon: FlagIcon },
   { id: 'medications', label: 'Meds', icon: BeakerIcon },
+  { id: 'vitals', label: 'Vitals', icon: HeartIcon },
+  { id: 'authorizations', label: 'Auths', icon: ShieldCheckIcon },
 ];
 
 const riskColors = {
@@ -70,6 +76,8 @@ export default function PatientChart() {
       case 'assessments': return <AssessmentsTab patient={patient} />;
       case 'careplan': return <CarePlanTab patient={patient} />;
       case 'medications': return <MedicationsTab patient={patient} />;
+      case 'vitals': return <VitalsTab patient={patient} />;
+      case 'authorizations': return <AuthorizationsTab patient={patient} />;
       default: return <OverviewTab patient={patient} />;
     }
   };
@@ -139,7 +147,9 @@ export default function PatientChart() {
                 tab.id === 'communications' ? patient.communications.length :
                 tab.id === 'admissions' ? patient.admissions.length :
                 tab.id === 'assessments' ? patient.assessments.length :
-                tab.id === 'appointments' ? patient.appointments.length : 0;
+                tab.id === 'appointments' ? patient.appointments.length :
+                tab.id === 'vitals' ? (patient.vitals || []).length :
+                tab.id === 'authorizations' ? (patient.authorizations || []).length : 0;
               const isActive = activeTab === tab.id;
               return (
                 <button
