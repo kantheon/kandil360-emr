@@ -1,13 +1,11 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   HomeIcon,
   UsersIcon,
   ArrowRightStartOnRectangleIcon,
   Bars3Icon,
-  XMarkIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
@@ -32,8 +30,8 @@ export default function AppLayout() {
       <aside className={`fixed lg:sticky top-0 left-0 z-50 h-screen bg-white border-r border-border-light flex flex-col transition-all duration-300 ease-in-out ${
         mobileOpen ? 'translate-x-0 w-[260px]' : '-translate-x-full lg:translate-x-0'
       } ${collapsed ? 'lg:w-[72px]' : 'lg:w-[260px]'}`}>
-        {/* Brand - click heart to collapse */}
-        <div className={`flex items-center h-16 border-b border-border-light shrink-0 ${collapsed ? 'justify-center px-0' : 'gap-3 px-5'}`}>
+        {/* Brand - click heart to collapse on desktop, close on mobile */}
+        <div className={`flex items-center h-14 border-b border-border-light shrink-0 ${collapsed ? 'justify-center px-0' : 'gap-3 px-5'}`}>
           <button
             onClick={() => {
               if (window.innerWidth >= 1024) {
@@ -129,29 +127,25 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main content - no header bar, pages control their own sticky headers */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 h-14 bg-white/80 backdrop-blur-md border-b border-border-light flex items-center px-4 lg:px-6 shrink-0">
-          <button className="lg:hidden p-2 -ml-2 rounded-lg text-text-secondary hover:bg-surface-hover cursor-pointer" onClick={() => setMobileOpen(true)}>
+        {/* Mobile-only top bar with hamburger */}
+        <div className="lg:hidden sticky top-0 z-30 h-12 bg-white/80 backdrop-blur-md border-b border-border-light flex items-center px-4 shrink-0">
+          <button className="p-2 -ml-2 rounded-lg text-text-secondary hover:bg-surface-hover cursor-pointer" onClick={() => setMobileOpen(true)}>
             <Bars3Icon className="w-5 h-5" />
           </button>
-          <button
-            className="hidden lg:flex p-1.5 rounded-lg text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer"
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <ChevronRightIcon className="w-4 h-4" /> : <ChevronLeftIcon className="w-4 h-4" />}
-          </button>
-          <div className="flex-1" />
-          <div className="flex items-center gap-2 text-xs text-text-muted">
-            <div className="w-2 h-2 bg-accent-400 rounded-full" />
-            Connected
+          <div className="flex items-center gap-2 ml-2">
+            <div className="w-6 h-6 bg-gradient-to-br from-primary-500 to-primary-700 rounded-md flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+              </svg>
+            </div>
+            <span className="text-sm font-bold text-text-primary">CareFlow</span>
           </div>
-        </header>
+        </div>
 
         {/* Page content */}
-        <main className="flex-1 p-4 lg:p-6 overflow-x-hidden">
+        <main className="flex-1 overflow-x-hidden">
           <Outlet />
         </main>
       </div>

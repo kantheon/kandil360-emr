@@ -50,7 +50,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in p-4 lg:p-6">
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Good morning, {firstName}</h1>
