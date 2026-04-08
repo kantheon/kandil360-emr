@@ -11,14 +11,33 @@ import { carePlanLibrary } from '../data/carePlanLibrary';
 import { addPatientEntry, getPatientEntries } from '../data/localStore';
 
 /* ── Provider availability ── */
+// Generate real date slots for next 2 weeks per provider
+function generateSlots(dayTimes) {
+  const slots = [];
+  const today = new Date();
+  for (let d = 1; d <= 14; d++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + d);
+    const dow = date.getDay();
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    for (const [dayNum, time] of dayTimes) {
+      if (dow === dayNum) {
+        const dateStr = date.toISOString().split('T')[0];
+        slots.push({ date: dateStr, time, label: `${dayNames[dow]} ${date.getMonth()+1}/${date.getDate()} @ ${time}` });
+      }
+    }
+  }
+  return slots;
+}
+
 const providerAvailability = [
-  { provider: 'Dr. Sarah Chen', specialty: 'PCP', slots: ['Mon 9:00 AM','Mon 2:00 PM','Wed 10:00 AM','Thu 11:00 AM','Fri 9:00 AM'] },
-  { provider: 'Dr. Robert Patel', specialty: 'Pulmonology', slots: ['Tue 1:00 PM','Thu 2:30 PM','Fri 10:00 AM'] },
-  { provider: 'Dr. James Kim', specialty: 'Cardiology', slots: ['Mon 11:00 AM','Wed 3:00 PM','Thu 9:00 AM'] },
-  { provider: 'Dr. Elena Rivera', specialty: 'Oncology', slots: ['Tue 9:00 AM','Wed 1:00 PM','Fri 2:00 PM'] },
-  { provider: 'Dr. Amy Wong', specialty: 'PCP', slots: ['Mon 10:00 AM','Tue 3:00 PM','Thu 10:00 AM','Fri 1:00 PM'] },
-  { provider: 'Dr. Raj Singh', specialty: 'Orthopedics', slots: ['Mon 8:00 AM','Wed 9:00 AM','Fri 11:00 AM'] },
-  { provider: 'CM Phone Assessment', specialty: 'Telehealth', slots: ['Mon-Fri flexible'] },
+  { provider: 'Dr. Sarah Chen', specialty: 'PCP', slots: generateSlots([[1,'9:00 AM'],[1,'2:00 PM'],[3,'10:00 AM'],[4,'11:00 AM'],[5,'9:00 AM']]) },
+  { provider: 'Dr. Robert Patel', specialty: 'Pulmonology', slots: generateSlots([[2,'1:00 PM'],[4,'2:30 PM'],[5,'10:00 AM']]) },
+  { provider: 'Dr. James Kim', specialty: 'Cardiology', slots: generateSlots([[1,'11:00 AM'],[3,'3:00 PM'],[4,'9:00 AM']]) },
+  { provider: 'Dr. Elena Rivera', specialty: 'Oncology', slots: generateSlots([[2,'9:00 AM'],[3,'1:00 PM'],[5,'2:00 PM']]) },
+  { provider: 'Dr. Amy Wong', specialty: 'PCP', slots: generateSlots([[1,'10:00 AM'],[2,'3:00 PM'],[4,'10:00 AM'],[5,'1:00 PM']]) },
+  { provider: 'Dr. Raj Singh', specialty: 'Orthopedics', slots: generateSlots([[1,'8:00 AM'],[3,'9:00 AM'],[5,'11:00 AM']]) },
+  { provider: 'CM Phone Assessment', specialty: 'Telehealth', slots: generateSlots([[1,'9:00 AM'],[2,'10:00 AM'],[3,'9:00 AM'],[4,'10:00 AM'],[5,'9:00 AM']]) },
 ];
 const goalStatuses = ['Not Started','Initiated','In Progress','On Track','Met','Not Met','Deferred'];
 
@@ -126,22 +145,32 @@ function AppointmentForm({ entry, onChange, disabled }) {
       </div>
       <div>
         <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Provider</label>
-        <select disabled={disabled} className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.provider||''} onChange={e=>onChange({...entry,provider:e.target.value,slot:''})}>
+        <select disabled={disabled} className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.provider||''} onChange={e=>onChange({...entry,provider:e.target.value,date:'',time:''})}>
           <option value="">Select provider...</option>
           {providerAvailability.map(p=><option key={p.provider} value={p.provider}>{p.provider} ({p.specialty})</option>)}
         </select>
       </div>
-      {selected && (
+      {selected && selected.slots.length > 0 && (
         <div>
           <label className="text-[10px] font-medium text-text-secondary mb-1 block">Available Slots</label>
           <div className="flex flex-wrap gap-1.5">
             {selected.slots.map(s=>(
-              <button key={s} disabled={disabled} onClick={()=>onChange({...entry,slot:s})}
-                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer disabled:opacity-60 ${entry.slot===s?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>{s}</button>
+              <button key={s.label} disabled={disabled} onClick={()=>onChange({...entry, date:s.date, time:s.time})}
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer disabled:opacity-60 ${entry.date===s.date&&entry.time===s.time?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>{s.label}</button>
             ))}
           </div>
         </div>
       )}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Date</label>
+          <input disabled={disabled} type="date" className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.date||''} onChange={e=>onChange({...entry,date:e.target.value})} />
+        </div>
+        <div>
+          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Time</label>
+          <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="e.g. 9:00 AM" value={entry.time||''} onChange={e=>onChange({...entry,time:e.target.value})} />
+        </div>
+      </div>
       <div>
         <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Location</label>
         <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="Clinic / Telehealth" value={entry.location||''} onChange={e=>onChange({...entry,location:e.target.value})} />
@@ -316,7 +345,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   const localGoals = getPatientEntries(patient.id, 'carePlanGoals');
   const mergedAppointments = [
     ...patient.appointments,
-    ...localAppts.map(a => ({ date: null, dateLabel: a.slot || 'TBD', time: '', provider: a.provider || '', type: a.type || 'Appointment', location: a.location || '', status: 'Scheduled' }))
+    ...localAppts.map(a => ({ date: a.date || null, time: a.time || '', provider: a.provider || '', type: a.type || 'Appointment', location: a.location || '', status: 'Scheduled' }))
   ];
   const mergedGoals = [
     ...patient.carePlan.goals,
@@ -432,7 +461,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                     <p className="text-[9px] text-primary-500 font-medium">{d.toLocaleDateString('en-US',{month:'short'})}</p>
                     <p className="text-base font-bold text-primary-700 leading-tight">{d.getDate()}</p>
                   </>) : (
-                    <p className="text-[10px] font-bold text-primary-700">{a.dateLabel || 'TBD'}</p>
+                    <p className="text-[10px] font-bold text-primary-700">TBD</p>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
