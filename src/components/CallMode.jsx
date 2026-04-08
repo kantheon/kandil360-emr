@@ -7,6 +7,8 @@ import {
   UserGroupIcon, ShieldExclamationIcon, LockClosedIcon
 } from '@heroicons/react/24/outline';
 import { assessmentTemplates } from '../data/assessmentTemplates';
+import { carePlanLibrary } from '../data/carePlanLibrary';
+import { addPatientEntry } from '../data/localStore';
 
 /* ── Provider availability ── */
 const providerAvailability = [
@@ -151,20 +153,56 @@ function AppointmentForm({ entry, onChange, disabled }) {
 function GoalForm({ entry, onChange, disabled, patient }) {
   const existingGoals = patient?.carePlan?.goals || [];
   const isExisting = entry.linkToExisting && entry.existingGoalId;
+  const [showLibrary, setShowLibrary] = useState(false);
+
+  const applyTemplate = (item, goal) => {
+    onChange({
+      ...entry,
+      linkToExisting: false,
+      healthConcern: item.healthConcern,
+      description: goal.description,
+      interventions: [...goal.interventions],
+      status: 'Not Started',
+      targetDate: '',
+    });
+    setShowLibrary(false);
+  };
 
   return (
     <div className="space-y-3">
-      {/* Link to existing or new */}
+      {/* Mode toggle */}
       {!disabled && (
-        <div className="flex gap-2">
-          <button onClick={()=>onChange({...entry,linkToExisting:false,existingGoalId:''})}
-            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${!entry.linkToExisting?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
-            New Entry
+        <div className="flex gap-1.5">
+          <button onClick={()=>{onChange({...entry,linkToExisting:false,existingGoalId:''});setShowLibrary(false);}}
+            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${!entry.linkToExisting&&!showLibrary?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
+            New
           </button>
-          <button onClick={()=>onChange({...entry,linkToExisting:true})}
+          <button onClick={()=>{setShowLibrary(true);onChange({...entry,linkToExisting:false});}}
+            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${showLibrary?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
+            From Library
+          </button>
+          <button onClick={()=>{onChange({...entry,linkToExisting:true});setShowLibrary(false);}}
             className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${entry.linkToExisting?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>
-            Add to Existing
+            Existing Goal
           </button>
+        </div>
+      )}
+
+      {/* Library picker */}
+      {showLibrary && !disabled && (
+        <div className="space-y-2 max-h-[300px] overflow-y-auto border border-border-light rounded-lg p-2 bg-surface-alt">
+          {carePlanLibrary.map(item => (
+            <div key={item.id}>
+              <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider px-1 py-1">{item.healthConcern}</p>
+              {item.goals.map(g => (
+                <button key={g.id} onClick={() => applyTemplate(item, g)}
+                  className="w-full text-left p-2 rounded-lg hover:bg-primary-50 hover:border-primary-200 border border-transparent transition-all cursor-pointer mb-1">
+                  <p className="text-[11px] font-medium text-text-primary">{g.description}</p>
+                  <p className="text-[10px] text-text-muted">{g.interventions.length} interventions &middot; {g.timeframe}</p>
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
       )}
 
@@ -283,7 +321,16 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   const addEntry=(type)=>{const id=Date.now();setEntries(p=>[...p,{id,type,data:{},saved:false}]);setExpandedEntries(p=>new Set([...p,id]));setShowAddMenu(false);};
   const updateEntry=(id,data)=>setEntries(p=>p.map(e=>e.id===id?{...e,data}:e));
   const removeEntry=(id)=>{setEntries(p=>p.filter(e=>e.id!==id));};
-  const saveEntry=(id)=>{setEntries(p=>p.map(e=>e.id===id?{...e,saved:true,savedAt:new Date().toLocaleTimeString()}:e));setExpandedEntries(p=>{const n=new Set(p);n.delete(id);return n;});};
+  const saveEntry=(id)=>{
+    const entry = entries.find(e=>e.id===id);
+    if(entry) {
+      // Persist to localStorage
+      const typeMap = { note:'progressNotes', comm:'communications', assessment:'assessments', appointment:'appointments', goal:'carePlanGoals' };
+      addPatientEntry(patient.id, typeMap[entry.type] || entry.type, entry.data);
+    }
+    setEntries(p=>p.map(e=>e.id===id?{...e,saved:true,savedAt:new Date().toLocaleTimeString()}:e));
+    setExpandedEntries(p=>{const n=new Set(p);n.delete(id);return n;});
+  };
   const toggleEntry=(id)=>setExpandedEntries(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
 
   // Group all entries (active + saved) by type
