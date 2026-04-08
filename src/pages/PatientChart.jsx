@@ -22,6 +22,7 @@ import AdmissionsTab from '../components/chart/AdmissionsTab';
 import AssessmentsTab from '../components/chart/AssessmentsTab';
 import CarePlanTab from '../components/chart/CarePlanTab';
 import MedicationsTab from '../components/chart/MedicationsTab';
+import CallMode from '../components/CallMode';
 
 const tabs = [
   { id: 'overview', label: 'Overview', icon: Squares2X2Icon },
@@ -44,6 +45,8 @@ const riskColors = {
 export default function PatientChart() {
   const { patientId } = useParams();
   const [activeTab, setActiveTab] = useState('overview');
+  const [callModeOpen, setCallModeOpen] = useState(false);
+  const [callModeMinimized, setCallModeMinimized] = useState(false);
 
   const patient = patients.find(p => p.id === patientId);
 
@@ -72,30 +75,23 @@ export default function PatientChart() {
 
   return (
     <div className="animate-fade-in">
-      {/* ===== STICKY HEADER - patient bar + tabs, never scrolls ===== */}
-      <div className="sticky top-12 lg:top-0 z-20 bg-white shadow-sm">
+      {/* STICKY HEADER - no gap, flush to top */}
+      <div className="sticky top-12 lg:top-0 z-20 bg-white shadow-sm -mt-[1px]">
         {/* Patient banner */}
-        <div className="px-4 lg:px-6 py-2.5 border-b border-border-light">
+        <div className="px-4 lg:px-6 py-2 border-b border-border-light">
           <div className="flex items-center gap-3 max-w-7xl mx-auto">
-            {/* Back */}
             <Link to="/patients" className="p-1.5 -ml-1.5 rounded-lg text-text-muted hover:text-primary-600 hover:bg-primary-50 transition-colors shrink-0">
               <ArrowLeftIcon className="w-4 h-4" />
             </Link>
-
-            {/* Avatar */}
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-primary-500/20 shrink-0">
               {patient.firstName[0]}{patient.lastName[0]}
             </div>
-
-            {/* Name + key info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-base lg:text-lg font-bold text-text-primary whitespace-nowrap">
                   {patient.lastName}, {patient.firstName}
                 </h1>
-                <span className={`badge border text-[11px] ${riskColors[patient.riskLevel]}`}>
-                  {patient.riskLevel}
-                </span>
+                <span className={`badge border text-[11px] ${riskColors[patient.riskLevel]}`}>{patient.riskLevel}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-text-muted mt-0.5">
                 <span className="font-medium text-text-secondary">{patient.id}</span>
@@ -122,15 +118,18 @@ export default function PatientChart() {
               </div>
             </div>
 
-            {/* Phone */}
-            <a href={`tel:${patient.phone}`} className="hidden sm:flex items-center gap-1.5 bg-accent-50 text-accent-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-accent-100 transition-colors shrink-0">
+            {/* Call mode button */}
+            <button
+              onClick={() => { setCallModeOpen(true); setCallModeMinimized(false); }}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-accent-500 to-accent-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:shadow-md hover:shadow-accent-500/25 transition-all cursor-pointer shrink-0"
+            >
               <PhoneIcon className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">{patient.phone}</span>
-            </a>
+              <span className="hidden sm:inline">Call Mode</span>
+            </button>
           </div>
         </div>
 
-        {/* Tab bar - flex grow to fill width */}
+        {/* Tab bar */}
         <div className="px-2 lg:px-4 overflow-x-auto bg-surface-alt border-b border-border-light">
           <div className="flex gap-1 max-w-7xl mx-auto py-1">
             {tabs.map((tab) => {
@@ -156,9 +155,7 @@ export default function PatientChart() {
                   {count > 0 && (
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none ${
                       isActive ? 'bg-primary-100 text-primary-700' : 'bg-border-light text-text-muted'
-                    }`}>
-                      {count}
-                    </span>
+                    }`}>{count}</span>
                   )}
                 </button>
               );
@@ -167,7 +164,7 @@ export default function PatientChart() {
         </div>
       </div>
 
-      {/* Allergy alert - scrolls with content, sits right under the sticky header */}
+      {/* Allergy alert - scrolls with content */}
       {patient.allergies.length > 0 && (
         <div className="bg-danger-50 border-b border-danger-100 px-4 lg:px-6 py-1.5 flex items-center gap-2">
           <ShieldExclamationIcon className="w-3.5 h-3.5 text-danger-500 shrink-0" />
@@ -184,6 +181,16 @@ export default function PatientChart() {
           {renderTab()}
         </div>
       </div>
+
+      {/* Call Mode */}
+      {callModeOpen && (
+        <CallMode
+          patient={patient}
+          minimized={callModeMinimized}
+          onToggleMinimize={() => setCallModeMinimized(!callModeMinimized)}
+          onClose={() => { setCallModeOpen(false); setCallModeMinimized(false); }}
+        />
+      )}
     </div>
   );
 }

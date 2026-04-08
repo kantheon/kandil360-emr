@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Modal from '../Modal';
 import {
   ClipboardDocumentCheckIcon,
   UserIcon,
@@ -79,33 +80,21 @@ export default function AssessmentsTab({ patient }) {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input type="text" placeholder="Search assessments..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-9 py-2 text-xs" />
           </div>
-          <button onClick={() => { setShowForm(!showForm); setSelectedTemplate(null); }} className="btn-primary py-2 flex items-center gap-1.5">
+          <button onClick={() => { setShowForm(true); setSelectedTemplate(null); }} className="btn-primary py-2 flex items-center gap-1.5">
             <PlusIcon className="w-4 h-4" />
             <span className="hidden sm:inline">New Assessment</span>
           </button>
         </div>
       </div>
 
-      {/* New Assessment - Template Picker */}
-      {showForm && !selectedTemplate && (
-        <div className="card p-5 border-primary-200 bg-primary-50/30 animate-fade-in">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-text-primary">Select Assessment Type</h3>
-            <button onClick={() => setShowForm(false)} className="p-1 rounded-lg hover:bg-surface-hover cursor-pointer">
-              <XMarkIcon className="w-4 h-4 text-text-muted" />
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {/* Modal - Template Picker or Form */}
+      <Modal open={showForm} onClose={() => { setShowForm(false); setSelectedTemplate(null); }} title={selectedTemplate ? selectedTemplate.name : 'New Assessment'} wide>
+        {!selectedTemplate ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {assessmentTemplates.map((template) => (
-              <button
-                key={template.id}
-                onClick={() => startAssessment(template)}
-                className="text-left card card-hover p-4 cursor-pointer border border-border-light"
-              >
+              <button key={template.id} onClick={() => startAssessment(template)} className="text-left card card-hover p-4 cursor-pointer border border-border-light">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
-                    <ClipboardDocumentCheckIcon className="w-4 h-4 text-primary-600" />
-                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center"><ClipboardDocumentCheckIcon className="w-4 h-4 text-primary-600" /></div>
                   <span className="badge badge-neutral text-[10px]">{template.category}</span>
                 </div>
                 <h4 className="text-sm font-semibold text-text-primary">{template.name}</h4>
@@ -113,82 +102,44 @@ export default function AssessmentsTab({ patient }) {
               </button>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Assessment Form */}
-      {showForm && selectedTemplate && (
-        <div className="card p-5 border-primary-200 bg-primary-50/30 animate-fade-in">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
-              <button onClick={() => setSelectedTemplate(null)} className="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer">&larr; Back</button>
+        ) : (
+          <>
+            <button onClick={() => setSelectedTemplate(null)} className="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer mb-4">&larr; Change assessment type</button>
+            <div className="space-y-4">
+              {selectedTemplate.questions.map((q, idx) => (
+                <div key={q.id} className="bg-surface-alt rounded-xl p-4 border border-border-light">
+                  <label className="text-xs font-semibold text-text-primary mb-2 flex items-center gap-2">
+                    <span className="w-5 h-5 bg-primary-100 text-primary-700 rounded-md flex items-center justify-center text-[10px] font-bold">{idx + 1}</span>
+                    {q.text}
+                  </label>
+                  <div className="mt-2 space-y-1.5">
+                    {q.options.map((opt) => (
+                      <label key={opt.value} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs ${formAnswers[q.id] === opt.value ? 'bg-primary-50 border border-primary-300 text-primary-700 font-medium' : 'bg-white border border-transparent hover:bg-surface-hover text-text-secondary'}`}>
+                        <input type="radio" name={q.id} value={opt.value} checked={formAnswers[q.id] === opt.value} onChange={() => handleAnswer(q.id, opt.value)} className="accent-primary-600" />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-            <button onClick={() => { setShowForm(false); setSelectedTemplate(null); }} className="p-1 rounded-lg hover:bg-surface-hover cursor-pointer">
-              <XMarkIcon className="w-4 h-4 text-text-muted" />
-            </button>
-          </div>
-          <h3 className="text-base font-semibold text-text-primary mb-1">{selectedTemplate.name}</h3>
-          <p className="text-xs text-text-muted mb-5">{selectedTemplate.category} &middot; {selectedTemplate.questions.length} questions</p>
-
-          {/* Questions */}
-          <div className="space-y-4">
-            {selectedTemplate.questions.map((q, idx) => (
-              <div key={q.id} className="bg-white rounded-xl p-4 border border-border-light">
-                <label className="text-xs font-semibold text-text-primary mb-2 flex items-center gap-2">
-                  <span className="w-5 h-5 bg-primary-100 text-primary-700 rounded-md flex items-center justify-center text-[10px] font-bold">{idx + 1}</span>
-                  {q.text}
-                </label>
-                <div className="mt-2 space-y-1.5">
-                  {q.options.map((opt) => (
-                    <label
-                      key={opt.value}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs ${
-                        formAnswers[q.id] === opt.value
-                          ? 'bg-primary-50 border border-primary-300 text-primary-700 font-medium'
-                          : 'bg-surface-alt border border-transparent hover:bg-surface-hover text-text-secondary'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={q.id}
-                        value={opt.value}
-                        checked={formAnswers[q.id] === opt.value}
-                        onChange={() => handleAnswer(q.id, opt.value)}
-                        className="accent-primary-600"
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
+            {currentResult && Object.keys(formAnswers).length > 0 && (
+              <div className={`mt-5 p-4 rounded-xl border ${scoreColorMap[currentResult.color] || 'bg-surface-alt text-text-primary border-border'}`}>
+                <div className="flex items-center justify-between">
+                  <div><p className="text-xs font-medium opacity-75">Score</p><p className="text-lg font-bold">{currentResult.total}</p></div>
+                  <div className="text-right"><p className="text-xs font-medium opacity-75">Result</p><p className="text-sm font-bold">{allAnswered ? currentResult.label : 'Complete all questions...'}</p></div>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* Live Score */}
-          {currentResult && Object.keys(formAnswers).length > 0 && (
-            <div className={`mt-5 p-4 rounded-xl border ${scoreColorMap[currentResult.color] || 'bg-surface-alt text-text-primary border-border'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium opacity-75">Current Score</p>
-                  <p className="text-lg font-bold">{currentResult.total}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-medium opacity-75">Result</p>
-                  <p className="text-sm font-bold">{allAnswered ? currentResult.label : 'Complete all questions...'}</p>
-                </div>
-              </div>
+            )}
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => { setShowForm(false); setSelectedTemplate(null); }} className="btn-secondary py-2 text-xs">Cancel</button>
+              <button disabled={!allAnswered} className={`btn-primary py-2 text-xs ${!allAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <CheckCircleIcon className="w-4 h-4 inline mr-1" />Save Assessment
+              </button>
             </div>
-          )}
-
-          <div className="flex justify-end gap-2 mt-5">
-            <button onClick={() => { setShowForm(false); setSelectedTemplate(null); }} className="btn-secondary py-2 text-xs">Cancel</button>
-            <button disabled={!allAnswered} className={`btn-primary py-2 text-xs ${!allAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
-              <CheckCircleIcon className="w-4 h-4 inline mr-1" />
-              Save Assessment
-            </button>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* Existing Assessments - Collapsible */}
       <div className="space-y-2">
