@@ -7,6 +7,7 @@ import {
   UserGroupIcon, ShieldExclamationIcon, LockClosedIcon
 } from '@heroicons/react/24/outline';
 import { assessmentTemplates } from '../data/assessmentTemplates';
+import AppointmentScheduler from './AppointmentScheduler';
 import { carePlanLibrary } from '../data/carePlanLibrary';
 import { addPatientEntry, getPatientEntries } from '../data/localStore';
 
@@ -136,47 +137,19 @@ function AssessmentForm({ entry, onChange, disabled }) {
 }
 
 function AppointmentForm({ entry, onChange, disabled }) {
-  const selected = providerAvailability.find(p=>p.provider===entry.provider);
-  return (
-    <div className="space-y-2">
-      <div>
-        <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Appointment Type</label>
-        <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="e.g. PCP Follow-up, Cardiology" value={entry.type||''} onChange={e=>onChange({...entry,type:e.target.value})} />
+  if (disabled) {
+    return (
+      <div className="space-y-1.5 text-xs">
+        <div className="flex justify-between"><span className="text-text-muted">Type</span><span className="font-medium">{entry.type || '-'}</span></div>
+        <div className="flex justify-between"><span className="text-text-muted">Provider</span><span className="font-medium">{entry.provider || '-'}</span></div>
+        <div className="flex justify-between"><span className="text-text-muted">Date</span><span className="font-medium">{entry.date || '-'}</span></div>
+        <div className="flex justify-between"><span className="text-text-muted">Time</span><span className="font-medium">{entry.time || '-'}</span></div>
+        <div className="flex justify-between"><span className="text-text-muted">Duration</span><span className="font-medium">{entry.duration || '30 min'}</span></div>
+        <div className="flex justify-between"><span className="text-text-muted">Location</span><span className="font-medium">{entry.location || '-'}</span></div>
       </div>
-      <div>
-        <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Provider</label>
-        <select disabled={disabled} className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.provider||''} onChange={e=>onChange({...entry,provider:e.target.value,date:'',time:''})}>
-          <option value="">Select provider...</option>
-          {providerAvailability.map(p=><option key={p.provider} value={p.provider}>{p.provider} ({p.specialty})</option>)}
-        </select>
-      </div>
-      {selected && selected.slots.length > 0 && (
-        <div>
-          <label className="text-[10px] font-medium text-text-secondary mb-1 block">Available Slots</label>
-          <div className="flex flex-wrap gap-1.5">
-            {selected.slots.map(s=>(
-              <button key={s.label} disabled={disabled} onClick={()=>onChange({...entry, date:s.date, time:s.time})}
-                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all cursor-pointer disabled:opacity-60 ${entry.date===s.date&&entry.time===s.time?'bg-primary-50 border-primary-300 text-primary-700':'border-border-light text-text-secondary hover:bg-surface-alt'}`}>{s.label}</button>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Date</label>
-          <input disabled={disabled} type="date" className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.date||''} onChange={e=>onChange({...entry,date:e.target.value})} />
-        </div>
-        <div>
-          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Time</label>
-          <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="e.g. 9:00 AM" value={entry.time||''} onChange={e=>onChange({...entry,time:e.target.value})} />
-        </div>
-      </div>
-      <div>
-        <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Location</label>
-        <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="Clinic / Telehealth" value={entry.location||''} onChange={e=>onChange({...entry,location:e.target.value})} />
-      </div>
-    </div>
-  );
+    );
+  }
+  return <AppointmentScheduler value={entry} onChange={onChange} disabled={disabled} />;
 }
 
 function GoalForm({ entry, onChange, disabled, patient }) {
@@ -525,6 +498,63 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
 
           <InfoCard title="Emergency Contact" icon={UserGroupIcon}>
             <div className="text-xs"><p className="font-semibold text-text-primary">{patient.emergencyContact.name}</p><p className="text-text-muted">{patient.emergencyContact.relation} &middot; {patient.emergencyContact.phone}</p></div>
+          </InfoCard>
+
+          {/* Previous Notes & Communications */}
+          <InfoCard title="Previous Notes" icon={DocumentTextIcon} count={(patient.progressNotes || []).length}>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {(patient.progressNotes || []).slice(0, 10).map((note, i) => (
+                <details key={note.id || i} className="group">
+                  <summary className="flex items-center gap-2 text-xs cursor-pointer hover:bg-surface-hover rounded-lg p-1.5 -m-1.5">
+                    <span className="badge badge-info text-[9px]">{note.type}</span>
+                    <span className="badge badge-neutral text-[9px]">{note.contactMethod}</span>
+                    <span className="text-text-muted text-[10px] flex-1">{note.date}</span>
+                    <ChevronDownIcon className="w-3 h-3 text-text-muted group-open:rotate-180 transition-transform shrink-0" />
+                  </summary>
+                  <div className="mt-1.5 pl-1 space-y-1.5 text-[11px]">
+                    {note.type === 'SOAP' ? (
+                      <>
+                        {note.subjective && <div><span className="font-semibold text-primary-600">S:</span> <span className="text-text-secondary">{note.subjective}</span></div>}
+                        {note.objective && <div><span className="font-semibold text-accent-600">O:</span> <span className="text-text-secondary">{note.objective}</span></div>}
+                        {note.assessment && <div><span className="font-semibold text-warn-500">A:</span> <span className="text-text-secondary">{note.assessment}</span></div>}
+                        {note.plan && <div><span className="font-semibold text-danger-500">P:</span> <span className="text-text-secondary">{note.plan}</span></div>}
+                      </>
+                    ) : (
+                      <>
+                        {note.data && <div><span className="font-semibold text-primary-600">D:</span> <span className="text-text-secondary">{note.data}</span></div>}
+                        {note.action && <div><span className="font-semibold text-accent-600">A:</span> <span className="text-text-secondary">{note.action}</span></div>}
+                        {note.response && <div><span className="font-semibold text-warn-500">R:</span> <span className="text-text-secondary">{note.response}</span></div>}
+                      </>
+                    )}
+                    <p className="text-[10px] text-text-muted">{note.author} &middot; {note.time}</p>
+                  </div>
+                </details>
+              ))}
+              {(patient.progressNotes || []).length === 0 && <p className="text-xs text-text-muted">No previous notes</p>}
+            </div>
+          </InfoCard>
+
+          <InfoCard title="Previous Communications" icon={ChatBubbleLeftRightIcon} count={(patient.communications || []).length}>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {(patient.communications || []).slice(0, 10).map((comm, i) => (
+                <details key={comm.id || i} className="group">
+                  <summary className="flex items-center gap-2 text-xs cursor-pointer hover:bg-surface-hover rounded-lg p-1.5 -m-1.5">
+                    <span className={`badge text-[9px] ${comm.direction === 'Outbound' ? 'badge-info' : 'badge-active'}`}>{comm.direction}</span>
+                    <span className="font-medium text-text-primary flex-1 truncate">{comm.subject}</span>
+                    <span className="text-text-muted text-[10px] shrink-0">{comm.date}</span>
+                    <ChevronDownIcon className="w-3 h-3 text-text-muted group-open:rotate-180 transition-transform shrink-0" />
+                  </summary>
+                  <div className="mt-1.5 pl-1 text-[11px] text-text-secondary">
+                    <p>{comm.summary}</p>
+                    <div className="flex gap-3 mt-1 text-[10px] text-text-muted">
+                      <span>{comm.contactPerson} ({comm.contactRole})</span>
+                      <span>Outcome: {comm.outcome}</span>
+                    </div>
+                  </div>
+                </details>
+              ))}
+              {(patient.communications || []).length === 0 && <p className="text-xs text-text-muted">No previous communications</p>}
+            </div>
           </InfoCard>
         </div>
 

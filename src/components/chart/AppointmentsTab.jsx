@@ -14,16 +14,8 @@ import {
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
 import ConfirmDialog from '../ConfirmDialog';
+import AppointmentScheduler from '../AppointmentScheduler';
 import { useData } from '../../contexts/DataContext';
-
-const providerList = [
-  'Dr. Sarah Chen (PCP)',
-  'Dr. Robert Patel (Pulmonology)',
-  'Dr. James Kim (Cardiology)',
-  'Dr. Elena Rivera (Oncology)',
-  'Dr. Amy Wong (PCP)',
-  'Dr. Raj Singh (Orthopedics)',
-];
 
 export default function AppointmentsTab({ patient }) {
   const { addEntry, updateEntry, deleteEntry, isEditable } = useData();
@@ -31,53 +23,30 @@ export default function AppointmentsTab({ patient }) {
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [apptType, setApptType] = useState('');
-  const [apptProvider, setApptProvider] = useState(providerList[0]);
-  const [apptDate, setApptDate] = useState('');
-  const [apptTime, setApptTime] = useState('');
-  const [apptLocation, setApptLocation] = useState('');
+  const [formData, setFormData] = useState({ type: '', provider: '', date: '', time: '', location: '', duration: '30 min' });
 
   const allAppointments = patient.appointments;
-
   const [expandedAppts, setExpandedAppts] = useState(new Set(allAppointments.map((_, i) => i)));
 
   const toggleAppt = (i) => {
-    setExpandedAppts(prev => {
-      const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
-      return next;
-    });
+    setExpandedAppts(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; });
   };
 
   const resetForm = () => {
-    setApptType(''); setApptProvider(providerList[0]); setApptDate(''); setApptTime(''); setApptLocation('');
+    setFormData({ type: '', provider: '', date: '', time: '', location: '', duration: '30 min' });
     setEditingEntry(null);
   };
 
-  const openAddModal = () => {
-    resetForm();
-    setShowForm(true);
-  };
+  const openAddModal = () => { resetForm(); setShowForm(true); };
 
   const openEditModal = (appt) => {
     setEditingEntry(appt);
-    setApptType(appt.type || '');
-    setApptProvider(appt.provider || providerList[0]);
-    setApptDate(appt.date || '');
-    setApptTime(appt.time || '');
-    setApptLocation(appt.location || '');
+    setFormData({ type: appt.type || '', provider: appt.provider || '', date: appt.date || '', time: appt.time || '', location: appt.location || '', duration: appt.duration || '30 min' });
     setShowForm(true);
   };
 
   const handleSave = () => {
-    const entry = {
-      date: apptDate,
-      time: apptTime,
-      provider: apptProvider,
-      type: apptType,
-      location: apptLocation,
-      status: 'Scheduled',
-    };
+    const entry = { ...formData, status: 'Scheduled' };
     if (editingEntry) {
       updateEntry(patient.id, 'appointments', editingEntry.id, entry);
     } else {
@@ -119,36 +88,8 @@ export default function AppointmentsTab({ patient }) {
       </div>
 
       {/* Modal Form */}
-      <Modal open={showForm} onClose={() => { setShowForm(false); resetForm(); }} title={editingEntry ? 'Edit Appointment' : 'Add Appointment'} footer={<div className="flex justify-end gap-2"><button onClick={() => { setShowForm(false); resetForm(); }} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">{editingEntry ? 'Update Appointment' : 'Save Appointment'}</button></div>}>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-text-secondary mb-1 block">Appointment Type</label>
-            <input type="text" className="input-field py-2 text-xs" placeholder="e.g. Follow-up, Annual Physical..." value={apptType} onChange={e => setApptType(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary mb-1 block">Provider</label>
-            <select value={apptProvider} onChange={e => setApptProvider(e.target.value)} className="input-field py-2 text-xs">
-              {providerList.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-text-secondary mb-1 block">Date</label>
-              <input type="date" className="input-field py-2 text-xs" value={apptDate} onChange={e => setApptDate(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-text-secondary mb-1 block">Time</label>
-              <select value={apptTime} onChange={e => setApptTime(e.target.value)} className="input-field py-2 text-xs">
-                <option value="">Select time...</option>
-                {['7:00 AM','7:30 AM','8:00 AM','8:30 AM','9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM'].map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary mb-1 block">Location</label>
-            <input type="text" className="input-field py-2 text-xs" placeholder="Clinic or address" value={apptLocation} onChange={e => setApptLocation(e.target.value)} />
-          </div>
-        </div>
+      <Modal open={showForm} onClose={() => { setShowForm(false); resetForm(); }} title={editingEntry ? 'Edit Appointment' : 'Schedule Appointment'} wide footer={<div className="flex justify-end gap-2"><button onClick={() => { setShowForm(false); resetForm(); }} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} disabled={!formData.date || !formData.time || !formData.provider} className={`btn-primary py-2 text-xs ${!formData.date || !formData.time || !formData.provider ? 'opacity-50 cursor-not-allowed' : ''}`}>{editingEntry ? 'Update' : 'Schedule'}</button></div>}>
+        <AppointmentScheduler value={formData} onChange={setFormData} disabled={false} />
       </Modal>
 
       {/* Confirm Delete Dialog */}
