@@ -49,8 +49,8 @@ export default function CarePlanTab({ patient }) {
 
   const [showDocModal, setShowDocModal] = useState(false);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
 
   const allGoals = patient.carePlan.goals;
 
@@ -126,6 +126,12 @@ export default function CarePlanTab({ patient }) {
           <button onClick={() => setShowAddGoalModal(true)} className="btn-secondary py-2 flex items-center gap-1.5 text-xs">
             <PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">Add Goal</span>
           </button>
+          {docSessions.length > 0 && (
+            <button onClick={() => setShowHistoryModal(true)} className="btn-secondary py-2 flex items-center gap-1.5 text-xs">
+              <DocumentTextIcon className="w-4 h-4" /><span className="hidden sm:inline">History</span>
+              <span className="badge badge-info text-[9px]">{docSessions.length}</span>
+            </button>
+          )}
           <button onClick={() => setShowDocModal(true)} className="btn-primary py-2 flex items-center gap-1.5 text-xs">
             <PencilSquareIcon className="w-4 h-4" /><span className="hidden sm:inline">New Documentation</span>
           </button>
@@ -266,32 +272,18 @@ export default function CarePlanTab({ patient }) {
         </div>
       )}
 
-      {/* Documentation History */}
-      <div className="border-t border-border-light pt-4">
-        <button
-          onClick={() => setShowHistory(!showHistory)}
-          className="flex items-center gap-2 text-sm font-semibold text-text-secondary cursor-pointer hover:text-text-primary transition-colors"
-        >
-          {showHistory ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-          <DocumentTextIcon className="w-4 h-4" />
-          Documentation History
-          {docSessions.length > 0 && (
-            <span className="badge badge-info text-[9px] ml-1">{docSessions.length}</span>
-          )}
-        </button>
-
-        {showHistory && (
-          <div className="mt-3 space-y-2 animate-fade-in">
-            {docSessions.length === 0 ? (
-              <p className="text-xs text-text-muted py-4 text-center">No documentation sessions yet.</p>
-            ) : (
-              docSessions.map((session, i) => (
-                <HistorySession key={session.id || i} session={session} />
-              ))
-            )}
+      {/* Documentation History Modal */}
+      <Modal open={showHistoryModal} onClose={() => setShowHistoryModal(false)} title={`Documentation History (${docSessions.length})`} wide>
+        {docSessions.length === 0 ? (
+          <p className="text-xs text-text-muted py-8 text-center">No documentation sessions yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {docSessions.map((session, i) => (
+              <HistorySession key={session.id || i} session={session} />
+            ))}
           </div>
         )}
-      </div>
+      </Modal>
 
       {/* Modals */}
       <ConfirmDialog
@@ -593,28 +585,31 @@ function DocumentationModal({ open, onClose, patient, allGoals, goalStatuses, ad
 
                 {/* Newly added interventions for this goal */}
                 {gf.newInterventions.map((iv, ivIdx) => (
-                  <div key={`new-${ivIdx}`} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg bg-accent-50/50 p-2.5 border border-accent-100">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <PlusIcon className="w-3 h-3 text-accent-500 shrink-0" />
-                      <input
-                        type="text"
-                        className="input-field py-1 px-2 text-xs flex-1"
-                        placeholder="New intervention..."
+                  <div key={`new-${ivIdx}`} className="flex flex-col sm:flex-row sm:items-start gap-2 rounded-lg bg-accent-50/50 p-2.5 border border-accent-100">
+                    <div className="flex-1 min-w-0">
+                      <SearchableDropdown
+                        options={(() => {
+                          const lib = carePlanLibrary.find(c => c.healthConcern === gf.healthConcern);
+                          if (!lib) return [];
+                          return lib.goals.flatMap(g => g.interventions);
+                        })()}
                         value={iv.text}
-                        onChange={e => updateNewIvText(goalIdx, ivIdx, e.target.value)}
+                        onChange={v => updateNewIvText(goalIdx, ivIdx, v)}
+                        placeholder="Search or type intervention..."
+                        small
                       />
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <select
                         value={iv.status}
                         onChange={e => updateNewIvStatus(goalIdx, ivIdx, e.target.value)}
-                        className="input-field py-1 px-2 text-[10px] font-semibold w-full sm:w-auto sm:min-w-[130px] shrink-0"
+                        className="input-field py-1.5 px-2 text-[10px] font-semibold min-w-[120px]"
                       >
                         {INTERVENTION_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                       <button
                         onClick={() => removeNewIv(goalIdx, ivIdx)}
-                        className="p-1 rounded hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer transition-colors shrink-0"
+                        className="p-1 rounded hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer transition-colors"
                       >
                         <TrashIcon className="w-3.5 h-3.5" />
                       </button>
