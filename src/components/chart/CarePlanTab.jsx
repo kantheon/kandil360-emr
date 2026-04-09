@@ -50,9 +50,13 @@ export default function CarePlanTab({ patient, autoOpenDoc }) {
   const [showDocModal, setShowDocModal] = useState(false);
 
   // Auto-open documentation modal when triggered from outside (e.g. Call Mode + menu)
+  const [lastAutoOpen, setLastAutoOpen] = useState(0);
   useEffect(() => {
-    if (autoOpenDoc) setShowDocModal(true);
-  }, [autoOpenDoc]);
+    if (autoOpenDoc && autoOpenDoc !== lastAutoOpen) {
+      setShowDocModal(true);
+      setLastAutoOpen(autoOpenDoc);
+    }
+  }, [autoOpenDoc, lastAutoOpen]);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);

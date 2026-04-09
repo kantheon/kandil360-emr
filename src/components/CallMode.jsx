@@ -1035,7 +1035,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
           {/* ── New Entry Modal ── */}
           {activeModal && createPortal(
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <div className="fixed inset-0 bg-black/40" onClick={()=>{setActiveModal(null);setModalFormData({});}} />
+              <div className="fixed inset-0 bg-black/40" onClick={addPending} />
               <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col animate-fade-in">
                 {/* Modal header */}
                 <div className="flex items-center justify-between px-5 py-3 border-b border-border-light shrink-0">
