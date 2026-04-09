@@ -143,13 +143,6 @@ export default function PatientChart() {
           <div className="flex gap-0 sm:gap-0.5 max-w-7xl mx-auto py-0.5 sm:py-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
-              const count = tab.id === 'notes' ? patient.progressNotes.length :
-                tab.id === 'communications' ? patient.communications.length :
-                tab.id === 'admissions' ? patient.admissions.length :
-                tab.id === 'assessments' ? patient.assessments.length :
-                tab.id === 'appointments' ? patient.appointments.length :
-                tab.id === 'vitals' ? (patient.vitals || []).length :
-                tab.id === 'authorizations' ? (patient.authorizations || []).length : 0;
               const isActive = activeTab === tab.id;
               return (
                 <button
@@ -163,11 +156,6 @@ export default function PatientChart() {
                 >
                   <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-primary-500' : 'text-text-muted'}`} />
                   <span className="hidden sm:inline">{tab.label}</span>
-                  {count > 0 && (
-                    <span className={`hidden sm:inline text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none ${
-                      isActive ? 'bg-primary-100 text-primary-700' : 'bg-border-light text-text-muted'
-                    }`}>{count}</span>
-                  )}
                 </button>
               );
             })}
