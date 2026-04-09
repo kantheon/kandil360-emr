@@ -121,7 +121,7 @@ function CommForm({ entry, onChange, disabled, patient }) {
       {disabled ? (
         <div className="text-xs"><span className="text-text-muted">Subject:</span> <span className="font-medium">{entry.subject || '-'}</span></div>
       ) : (
-        <SearchableDropdown label="Subject" options={callSubjects} value={entry.subject||''} onChange={v=>onChange({...entry,subject:v})} placeholder="Search subject..." small />
+        <SearchableDropdown label="Call Type" options={callSubjects} value={entry.subject||''} onChange={v=>onChange({...entry,subject:v})} placeholder="Search call type..." small />
       )}
       <textarea disabled={disabled} className="textarea-field text-xs !min-h-[48px] disabled:opacity-60" rows={2} placeholder="Summary..." value={entry.summary||''} onChange={e=>onChange({...entry,summary:e.target.value})} />
       <div className="grid grid-cols-2 gap-2">

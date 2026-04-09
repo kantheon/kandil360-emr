@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { CalendarDaysIcon, ClockIcon, MapPinIcon, UserIcon } from '@heroicons/react/24/outline';
+import { appointmentTypes } from '../data/appointmentTypes';
+import SearchableDropdown from './SearchableDropdown';
 
 /* ── Provider schedules: day-of-week → available times ── */
 const providerSchedules = [
@@ -119,10 +121,11 @@ export default function AppointmentScheduler({ value, onChange, disabled }) {
   return (
     <div className="space-y-3">
       {/* Appointment Type */}
-      <div>
-        <label className="text-xs font-medium text-text-secondary mb-1 block">Appointment Type</label>
-        <input disabled={disabled} type="text" className="input-field py-2 text-xs disabled:opacity-60" placeholder="e.g. PCP Follow-up, Cardiology Consult" value={value.type || ''} onChange={e => onChange({ ...value, type: e.target.value })} />
-      </div>
+      {disabled ? (
+        <div><label className="text-xs font-medium text-text-secondary mb-1 block">Appointment Type</label><p className="text-xs font-medium text-text-primary">{value.type || '-'}</p></div>
+      ) : (
+        <SearchableDropdown label="Appointment Type" options={appointmentTypes} value={value.type || ''} onChange={v => onChange({ ...value, type: v })} placeholder="Search appointment type..." />
+      )}
 
       {/* Provider */}
       <div>

@@ -230,7 +230,7 @@ export default function CommunicationsTab({ patient }) {
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select value={contactRole} onChange={e => setContactRole(e.target.value)} className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option><option>Case Manager</option><option>Other</option></select></div>
         </div>
         <div className="space-y-3 mb-4">
-          <SearchableDropdown label="Subject" options={callSubjects} value={subject} onChange={setSubject} placeholder="Search or type subject..." />
+          <SearchableDropdown label="Call Type" options={callSubjects} value={subject} onChange={setSubject} placeholder="Search or type subject..." />
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Summary</label><textarea className="textarea-field text-xs" rows={3} placeholder="Summarize..." value={summary} onChange={e => setSummary(e.target.value)} /></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SearchableDropdown label="Outcome" options={callOutcomes} value={outcome} onChange={setOutcome} placeholder="Search outcome..." />
