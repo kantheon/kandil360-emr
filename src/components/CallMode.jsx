@@ -11,6 +11,9 @@ import AppointmentScheduler from './AppointmentScheduler';
 import { carePlanLibrary } from '../data/carePlanLibrary';
 import { addPatientEntry, getPatientEntries } from '../data/localStore';
 import { getPatientContacts } from '../data/contactHelpers';
+import { callSubjects } from '../data/callSubjects';
+import { callOutcomes } from '../data/callOutcomes';
+import SearchableDropdown from './SearchableDropdown';
 
 /* ── Provider availability ── */
 // Generate real date slots for next 2 weeks per provider
@@ -115,10 +118,18 @@ function CommForm({ entry, onChange, disabled, patient }) {
         <select disabled={disabled} value={entry.method||'Phone'} onChange={e=>onChange({...entry,method:e.target.value})} className="input-field py-1.5 text-xs disabled:opacity-60"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option></select>
       </div>
       <select disabled={disabled} value={entry.contactRole||'Patient'} onChange={e=>onChange({...entry,contactRole:e.target.value})} className="input-field py-1.5 text-xs disabled:opacity-60"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option><option>Case Manager</option><option>Other</option></select>
-      <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="Subject" value={entry.subject||''} onChange={e=>onChange({...entry,subject:e.target.value})} />
+      {disabled ? (
+        <div className="text-xs"><span className="text-text-muted">Subject:</span> <span className="font-medium">{entry.subject || '-'}</span></div>
+      ) : (
+        <SearchableDropdown label="Subject" options={callSubjects} value={entry.subject||''} onChange={v=>onChange({...entry,subject:v})} placeholder="Search subject..." small />
+      )}
       <textarea disabled={disabled} className="textarea-field text-xs !min-h-[48px] disabled:opacity-60" rows={2} placeholder="Summary..." value={entry.summary||''} onChange={e=>onChange({...entry,summary:e.target.value})} />
       <div className="grid grid-cols-2 gap-2">
-        <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="Outcome" value={entry.outcome||''} onChange={e=>onChange({...entry,outcome:e.target.value})} />
+        {disabled ? (
+          <div className="text-xs"><span className="text-text-muted">Outcome:</span> <span className="font-medium">{entry.outcome || '-'}</span></div>
+        ) : (
+          <SearchableDropdown label="Outcome" options={callOutcomes} value={entry.outcome||''} onChange={v=>onChange({...entry,outcome:v})} placeholder="Search outcome..." small />
+        )}
         <input disabled={disabled} type="date" className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.followUpDate||''} onChange={e=>onChange({...entry,followUpDate:e.target.value})} />
       </div>
     </div>

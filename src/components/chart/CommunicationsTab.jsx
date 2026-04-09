@@ -15,6 +15,9 @@ import Modal from '../Modal';
 import ConfirmDialog from '../ConfirmDialog';
 import { useData } from '../../contexts/DataContext';
 import { getPatientContacts, addCustomContact } from '../../data/contactHelpers';
+import { callSubjects } from '../../data/callSubjects';
+import { callOutcomes } from '../../data/callOutcomes';
+import SearchableDropdown from '../SearchableDropdown';
 
 const directionIcons = { 'Outbound': PhoneArrowUpRightIcon, 'Inbound': PhoneArrowDownLeftIcon };
 const methodColors = { 'Phone': 'badge-info', 'Fax': 'badge-neutral', 'Email': 'badge-active', 'In-Person': 'badge-warning' };
@@ -227,10 +230,10 @@ export default function CommunicationsTab({ patient }) {
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select value={contactRole} onChange={e => setContactRole(e.target.value)} className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option><option>Case Manager</option><option>Other</option></select></div>
         </div>
         <div className="space-y-3 mb-4">
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Subject</label><input type="text" className="input-field py-2 text-xs" placeholder="Brief subject" value={subject} onChange={e => setSubject(e.target.value)} /></div>
+          <SearchableDropdown label="Subject" options={callSubjects} value={subject} onChange={setSubject} placeholder="Search or type subject..." />
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Summary</label><textarea className="textarea-field text-xs" rows={3} placeholder="Summarize..." value={summary} onChange={e => setSummary(e.target.value)} /></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div><label className="text-xs font-medium text-text-secondary mb-1 block">Outcome</label><input type="text" className="input-field py-2 text-xs" placeholder="Result" value={outcome} onChange={e => setOutcome(e.target.value)} /></div>
+            <SearchableDropdown label="Outcome" options={callOutcomes} value={outcome} onChange={setOutcome} placeholder="Search outcome..." />
             <div><label className="text-xs font-medium text-text-secondary mb-1 block">Follow-up</label><input type="date" className="input-field py-2 text-xs" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} /></div>
           </div>
         </div>
