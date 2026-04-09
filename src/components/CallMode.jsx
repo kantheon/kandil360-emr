@@ -16,6 +16,7 @@ import { callSubjects } from '../data/callSubjects';
 import { noteTypes } from '../data/noteTypes';
 import { callOutcomes } from '../data/callOutcomes';
 import SearchableDropdown from './SearchableDropdown';
+import CarePlanTab from './chart/CarePlanTab';
 
 /* ── Provider availability ── */
 // Generate real date slots for next 2 weeks per provider
@@ -493,24 +494,7 @@ function CallModeLeftPanel({ patient, mergedAppointments, mergedGoals, addEntry 
 
         {/* CARE PLAN */}
         {tab === 'careplan' && (
-          <div className="space-y-2">
-            <button onClick={() => addEntry('goal')} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700 mb-2"><PlusIcon className="w-3.5 h-3.5" />Add Goal</button>
-            {mergedGoals.map(g => (
-              <button key={g.id} onClick={() => setDetailItem({ type: 'goal', data: g })} className="w-full text-left card p-3 hover:bg-surface-alt transition-colors cursor-pointer">
-                {g.healthConcern && <p className="text-[10px] text-text-muted font-medium uppercase">{g.healthConcern}</p>}
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs text-text-primary">{g.description}</p>
-                  <span className={`badge text-[9px] shrink-0 ${g.status === 'Met' ? 'badge-active' : g.status === 'On Track' ? 'badge-info' : 'badge-warning'}`}>{g.status}</span>
-                </div>
-              </button>
-            ))}
-            {patient.carePlan.barriers.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-border-light">
-                <p className="text-[10px] font-semibold text-text-secondary mb-1">Barriers</p>
-                {patient.carePlan.barriers.map((b, i) => <p key={i} className="text-[11px] text-text-muted flex items-start gap-1"><ExclamationCircleIcon className="w-3 h-3 text-warn-500 shrink-0 mt-0.5" />{b}</p>)}
-              </div>
-            )}
-          </div>
+          <CarePlanTab patient={patient} />
         )}
 
         {/* AUTHS */}
@@ -692,12 +676,48 @@ const typeConfig = {
   goal:{label:'Care Plan Goals',icon:FlagIcon,color:'bg-accent-100',iconColor:'text-accent-600'},
 };
 
+/* ── Entry summary helper ── */
+function getEntrySummary(entry) {
+  const d = entry.data;
+  if (entry.type === 'note') {
+    const nt = noteTypes.find(t => t.id === d.noteTypeId);
+    const typeName = d.noteTypeName || nt?.name || 'Note';
+    const preview = nt?.fields?.map(f => d[f]).filter(Boolean).join(' | ').slice(0, 120);
+    return { title: typeName, preview: preview || 'No content entered' };
+  }
+  if (entry.type === 'comm') {
+    const who = d.contactPerson ? `${d.contactPerson}` : '';
+    const dir = d.direction || 'Outbound';
+    const subj = d.subject || '';
+    return { title: `${dir} ${d.method || 'Phone'} Call`, preview: [who, subj, d.summary?.slice(0, 80)].filter(Boolean).join(' - ') || 'No details entered' };
+  }
+  if (entry.type === 'assessment') {
+    const t = assessmentTemplates.find(x => x.id === d.templateId);
+    if (!t) return { title: 'Assessment', preview: 'No template selected' };
+    const answers = d.answers || {};
+    const answered = t.questions.filter(q => answers[q.id] !== undefined).length;
+    const total = t.questions.reduce((s, q) => s + (answers[q.id] ?? 0), 0);
+    return { title: t.name, preview: `${answered}/${t.questions.length} answered · Score: ${total}` };
+  }
+  if (entry.type === 'appointment') {
+    return { title: d.type || 'Appointment', preview: [d.provider, d.date, d.time, d.location].filter(Boolean).join(' · ') || 'No details entered' };
+  }
+  if (entry.type === 'goal') {
+    const hc = d.healthConcern || '';
+    const desc = d.description || '';
+    return { title: hc || 'Care Plan Goal', preview: [desc, d.status !== 'Not Started' ? d.status : '', d.targetDate].filter(Boolean).join(' · ') || 'No details entered' };
+  }
+  return { title: 'Entry', preview: '' };
+}
+
 /* ── Main ── */
 export default function CallMode({ patient, onClose, minimized, onToggleMinimize }) {
   const [entries,setEntries] = useState([]);
   const [expandedEntries,setExpandedEntries] = useState(new Set());
   const [showAddMenu,setShowAddMenu] = useState(false);
   const [saveCount,setSaveCount] = useState(0);
+  const [activeModal,setActiveModal] = useState(null); // entry type string or null
+  const [modalFormData,setModalFormData] = useState({});
 
   useEffect(()=>{
     if(!minimized){document.body.style.overflow='hidden';}else{document.body.style.overflow='';}
@@ -722,65 +742,69 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   // Force re-read on save by depending on saveCount
   void saveCount;
 
-  const addEntry=(type)=>{const id=Date.now();setEntries(p=>[...p,{id,type,data:{},saved:false}]);setExpandedEntries(p=>new Set([...p,id]));setShowAddMenu(false);};
-  const updateEntry=(id,data)=>setEntries(p=>p.map(e=>e.id===id?{...e,data}:e));
+  const openModal=(type)=>{setActiveModal(type);setModalFormData({});setShowAddMenu(false);};
+  const addEntry=(type)=>{openModal(type);}; // kept for left panel calls
+  const addPending=()=>{
+    const id=Date.now();
+    setEntries(p=>[...p,{id,type:activeModal,data:{...modalFormData},saved:false}]);
+    setActiveModal(null);setModalFormData({});
+  };
   const removeEntry=(id)=>{setEntries(p=>p.filter(e=>e.id!==id));};
-  const saveEntry=(id)=>{
-    const entry = entries.find(e=>e.id===id);
-    if(entry) {
-      const typeMap = { note:'progressNotes', comm:'communications', assessment:'assessments', appointment:'appointments', goal:'carePlanGoals' };
-      let dataToSave = { ...entry.data };
-      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-      const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const toggleEntry=(id)=>setExpandedEntries(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
 
-      // Enrich note data with type/date/author
-      if (entry.type === 'note') {
-        const nt = noteTypes.find(t => t.id === dataToSave.noteTypeId);
-        dataToSave.type = dataToSave.noteTypeName || nt?.name || 'Progress Note';
-        dataToSave.typeId = dataToSave.noteTypeId || 'soap';
-        dataToSave.format = nt?.format || 'SOAP';
-        dataToSave.date = today;
-        dataToSave.time = timeNow;
-        dataToSave.author = 'Current User';
-      }
+  // Enrichment + save logic (used by saveAll)
+  const enrichAndSave=(entry)=>{
+    const typeMap = { note:'progressNotes', comm:'communications', assessment:'assessments', appointment:'appointments', goal:'carePlanGoals' };
+    let dataToSave = { ...entry.data };
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-      // Enrich comm data
-      if (entry.type === 'comm') {
-        dataToSave.date = today;
-        dataToSave.time = timeNow;
-        dataToSave.followUpNeeded = !!dataToSave.followUpDate;
-      }
-
-      // Enrich assessment data so it is compatible with AssessmentsTab edit flow
-      if (entry.type === 'assessment' && dataToSave.templateId) {
-        const tpl = assessmentTemplates.find(t => t.id === dataToSave.templateId);
-        if (tpl) {
-          const answers = dataToSave.answers || {};
-          const total = tpl.questions.reduce((s, q) => s + (answers[q.id] ?? 0), 0);
-          const allDone = tpl.questions.every(q => answers[q.id] !== undefined);
-          const range = tpl.scoring.method === 'sum' ? tpl.scoring.ranges.find(r => total >= r.min && total <= r.max) : null;
-          dataToSave = {
-            ...dataToSave,
-            templateName: tpl.name,
-            score: total,
-            result: range ? range.label : (allDone ? 'See sections' : 'Incomplete'),
-            type: tpl.name,
-            date: today,
-            author: 'Current User',
-            status: allDone ? 'Completed' : 'In Progress',
-            summary: `${tpl.name}: Score ${total}${range ? ' - ' + range.label : ''}`,
-            phq2Score: null, fallRisk: null, painLevel: null,
-            cognitiveStatus: null, functionalStatus: null, sdoh: null,
-          };
-        }
-      }
-      addPatientEntry(patient.id, typeMap[entry.type] || entry.type, dataToSave);
+    if (entry.type === 'note') {
+      const nt = noteTypes.find(t => t.id === dataToSave.noteTypeId);
+      dataToSave.type = dataToSave.noteTypeName || nt?.name || 'Progress Note';
+      dataToSave.typeId = dataToSave.noteTypeId || 'soap';
+      dataToSave.format = nt?.format || 'SOAP';
+      dataToSave.date = today;
+      dataToSave.time = timeNow;
+      dataToSave.author = 'Current User';
     }
-    setEntries(p=>p.map(e=>e.id===id?{...e,saved:true,savedAt:new Date().toLocaleTimeString()}:e));
-    setExpandedEntries(p=>{const n=new Set(p);n.delete(id);return n;});
+    if (entry.type === 'comm') {
+      dataToSave.date = today;
+      dataToSave.time = timeNow;
+      dataToSave.followUpNeeded = !!dataToSave.followUpDate;
+    }
+    if (entry.type === 'assessment' && dataToSave.templateId) {
+      const tpl = assessmentTemplates.find(t => t.id === dataToSave.templateId);
+      if (tpl) {
+        const answers = dataToSave.answers || {};
+        const total = tpl.questions.reduce((s, q) => s + (answers[q.id] ?? 0), 0);
+        const allDone = tpl.questions.every(q => answers[q.id] !== undefined);
+        const range = tpl.scoring.method === 'sum' ? tpl.scoring.ranges.find(r => total >= r.min && total <= r.max) : null;
+        dataToSave = {
+          ...dataToSave,
+          templateName: tpl.name, score: total,
+          result: range ? range.label : (allDone ? 'See sections' : 'Incomplete'),
+          type: tpl.name, date: today, author: 'Current User',
+          status: allDone ? 'Completed' : 'In Progress',
+          summary: `${tpl.name}: Score ${total}${range ? ' - ' + range.label : ''}`,
+          phq2Score: null, fallRisk: null, painLevel: null,
+          cognitiveStatus: null, functionalStatus: null, sdoh: null,
+        };
+      }
+    }
+    addPatientEntry(patient.id, typeMap[entry.type] || entry.type, dataToSave);
+  };
+
+  const saveAll=()=>{
+    const unsaved = entries.filter(e=>!e.saved);
+    unsaved.forEach(enrichAndSave);
+    const now = new Date().toLocaleTimeString();
+    setEntries(p=>p.map(e=>e.saved ? e : {...e,saved:true,savedAt:now}));
+    setExpandedEntries(new Set());
     setSaveCount(c=>c+1);
   };
-  const toggleEntry=(id)=>setExpandedEntries(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
+
+  const pendingCount = entries.filter(e=>!e.saved).length;
 
   // Group all entries (active + saved) by type
   const grouped={};
@@ -838,26 +862,33 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
 
         {/* RIGHT - Documentation */}
         <div className="w-full lg:w-[440px] flex flex-col bg-white shrink-0 min-h-[40vh] lg:min-h-0 border-t lg:border-t-0">
-          {/* Header with + button */}
+          {/* Header with + and Save All buttons */}
           <div className="px-4 py-2.5 bg-surface-alt border-b border-border-light shrink-0 flex items-center justify-between">
             <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Documentation</p>
-            <div className="relative">
-              <button onClick={()=>setShowAddMenu(!showAddMenu)} className="w-7 h-7 rounded-lg bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700 transition-colors cursor-pointer shadow-sm">
-                <PlusIcon className="w-4 h-4" />
-              </button>
-              {showAddMenu&&(
-                <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-lg border border-border-light p-1.5 z-10 animate-fade-in">
-                  {[{id:'note',label:'Progress Note',icon:DocumentTextIcon},{id:'comm',label:'Communication',icon:ChatBubbleLeftRightIcon},{id:'assessment',label:'Assessment',icon:ClipboardDocumentCheckIcon},{id:'appointment',label:'Appointment',icon:CalendarDaysIcon},{id:'goal',label:'Care Plan Goal',icon:FlagIcon}].map(t=>(
-                    <button key={t.id} onClick={()=>addEntry(t.id)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-primary-50 transition-colors cursor-pointer text-left">
-                      <t.icon className="w-4 h-4 text-text-muted" /><span className="text-xs font-medium text-text-primary">{t.label}</span>
-                    </button>
-                  ))}
-                </div>
+            <div className="flex items-center gap-1.5">
+              {pendingCount > 0 && (
+                <button onClick={saveAll} className="h-7 px-2.5 rounded-lg bg-accent-600 text-white flex items-center justify-center gap-1 hover:bg-accent-700 transition-colors cursor-pointer shadow-sm text-[11px] font-medium" title="Save All Pending">
+                  <CheckCircleIcon className="w-3.5 h-3.5" />Save All ({pendingCount})
+                </button>
               )}
+              <div className="relative">
+                <button onClick={()=>setShowAddMenu(!showAddMenu)} className="w-7 h-7 rounded-lg bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700 transition-colors cursor-pointer shadow-sm">
+                  <PlusIcon className="w-4 h-4" />
+                </button>
+                {showAddMenu&&(
+                  <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-lg border border-border-light p-1.5 z-10 animate-fade-in">
+                    {[{id:'note',label:'Progress Note',icon:DocumentTextIcon},{id:'comm',label:'Communication',icon:ChatBubbleLeftRightIcon},{id:'assessment',label:'Assessment',icon:ClipboardDocumentCheckIcon},{id:'appointment',label:'Appointment',icon:CalendarDaysIcon},{id:'goal',label:'Care Plan Goal',icon:FlagIcon}].map(t=>(
+                      <button key={t.id} onClick={()=>openModal(t.id)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-primary-50 transition-colors cursor-pointer text-left">
+                        <t.icon className="w-4 h-4 text-text-muted" /><span className="text-xs font-medium text-text-primary">{t.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Entries */}
+          {/* Entries - pending summary cards & saved items */}
           <div className="flex-1 overflow-y-auto p-3 space-y-4">
             {Object.entries(typeConfig).map(([type,cfg])=>{
               const items=grouped[type];
@@ -873,26 +904,34 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                   <div className="space-y-2">
                     {items.map(entry=>{
                       const isOpen=expandedEntries.has(entry.id);
-                      const title=getEntryTitle(entry);
+                      const summary=getEntrySummary(entry);
                       return(
-                        <div key={entry.id} className={`border rounded-lg overflow-hidden ${entry.saved?'border-accent-200 bg-accent-50/30':'border-border-light'}`}>
-                          <button onClick={()=>toggleEntry(entry.id)} className={`w-full flex items-center gap-2 px-3 py-2 transition-colors cursor-pointer text-left ${entry.saved?'bg-accent-50 hover:bg-accent-100/50':'bg-surface-alt hover:bg-surface-hover'}`}>
-                            {entry.saved&&<LockClosedIcon className="w-3 h-3 text-accent-600 shrink-0" />}
-                            <span className={`text-[11px] font-medium flex-1 ${entry.saved?'text-accent-700':'text-text-primary'}`}>
-                              {title}
-                              {entry.saved&&<span className="text-[10px] text-accent-500 ml-2">saved {entry.savedAt}</span>}
-                            </span>
+                        <div key={entry.id} className={`border rounded-lg overflow-hidden ${entry.saved?'border-accent-200 bg-accent-50/30':'border-amber-300 bg-amber-50/30'}`}>
+                          <button onClick={()=>toggleEntry(entry.id)} className={`w-full flex items-center gap-2 px-3 py-2 transition-colors cursor-pointer text-left ${entry.saved?'bg-accent-50 hover:bg-accent-100/50':'bg-amber-50 hover:bg-amber-100/50'}`}>
+                            {entry.saved ? (
+                              <LockClosedIcon className="w-3 h-3 text-accent-600 shrink-0" />
+                            ) : (
+                              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <span className={`text-[11px] font-medium block ${entry.saved?'text-accent-700':'text-text-primary'}`}>
+                                {summary.title}
+                                {entry.saved&&<span className="text-[10px] text-accent-500 ml-2">saved {entry.savedAt}</span>}
+                                {!entry.saved&&<span className="text-[10px] text-amber-600 ml-2">pending</span>}
+                              </span>
+                              {!isOpen && <p className="text-[10px] text-text-muted truncate">{summary.preview}</p>}
+                            </div>
                             {!entry.saved&&<button onClick={e=>{e.stopPropagation();removeEntry(entry.id);}} className="p-0.5 rounded hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3 h-3" /></button>}
-                            {isOpen?<ChevronUpIcon className="w-3 h-3 text-text-muted" />:<ChevronDownIcon className="w-3 h-3 text-text-muted" />}
+                            {isOpen?<ChevronUpIcon className="w-3 h-3 text-text-muted shrink-0" />:<ChevronDownIcon className="w-3 h-3 text-text-muted shrink-0" />}
                           </button>
                           {isOpen&&(
                             <div className="px-3 pb-3 pt-2 border-t border-border-light bg-white">
-                              {entry.type==='note'&&<NoteForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
-                              {entry.type==='comm'&&<CommForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} patient={patient} />}
-                              {entry.type==='assessment'&&<AssessmentForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
-                              {entry.type==='appointment'&&<AppointmentForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
-                              {entry.type==='goal'&&<GoalForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} patient={patient} />}
-                              {!entry.saved&&<button onClick={()=>saveEntry(entry.id)} className="btn-primary w-full py-1.5 text-xs mt-2 flex items-center justify-center gap-1"><CheckCircleIcon className="w-3.5 h-3.5" />Save</button>}
+                              {/* Always read-only view - forms are only in modals */}
+                              {entry.type==='note'&&<NoteForm entry={entry.data} onChange={()=>{}} disabled={true} />}
+                              {entry.type==='comm'&&<CommForm entry={entry.data} onChange={()=>{}} disabled={true} patient={patient} />}
+                              {entry.type==='assessment'&&<AssessmentForm entry={entry.data} onChange={()=>{}} disabled={true} />}
+                              {entry.type==='appointment'&&<AppointmentForm entry={entry.data} onChange={()=>{}} disabled={true} />}
+                              {entry.type==='goal'&&<GoalForm entry={entry.data} onChange={()=>{}} disabled={true} patient={patient} />}
                             </div>
                           )}
                         </div>
@@ -910,6 +949,42 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
               </div>
             )}
           </div>
+
+          {/* ── New Entry Modal ── */}
+          {activeModal && createPortal(
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <div className="fixed inset-0 bg-black/40" onClick={()=>{setActiveModal(null);setModalFormData({});}} />
+              <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col animate-fade-in">
+                {/* Modal header */}
+                <div className="flex items-center justify-between px-5 py-3 border-b border-border-light shrink-0">
+                  <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                    {activeModal==='note'&&<><DocumentTextIcon className="w-4 h-4 text-primary-500" />New Progress Note</>}
+                    {activeModal==='comm'&&<><ChatBubbleLeftRightIcon className="w-4 h-4 text-accent-500" />New Communication</>}
+                    {activeModal==='assessment'&&<><ClipboardDocumentCheckIcon className="w-4 h-4 text-warn-500" />New Assessment</>}
+                    {activeModal==='appointment'&&<><CalendarDaysIcon className="w-4 h-4 text-primary-500" />New Appointment</>}
+                    {activeModal==='goal'&&<><FlagIcon className="w-4 h-4 text-accent-500" />New Care Plan Goal</>}
+                  </h2>
+                  <button onClick={()=>{setActiveModal(null);setModalFormData({});}} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-muted cursor-pointer"><XMarkIcon className="w-4 h-4" /></button>
+                </div>
+                {/* Modal body */}
+                <div className="flex-1 overflow-y-auto p-5">
+                  {activeModal==='note'&&<NoteForm entry={modalFormData} onChange={setModalFormData} disabled={false} />}
+                  {activeModal==='comm'&&<CommForm entry={modalFormData} onChange={setModalFormData} disabled={false} patient={patient} />}
+                  {activeModal==='assessment'&&<AssessmentForm entry={modalFormData} onChange={setModalFormData} disabled={false} />}
+                  {activeModal==='appointment'&&<AppointmentForm entry={modalFormData} onChange={setModalFormData} disabled={false} />}
+                  {activeModal==='goal'&&<GoalForm entry={modalFormData} onChange={setModalFormData} disabled={false} patient={patient} />}
+                </div>
+                {/* Modal footer */}
+                <div className="shrink-0 px-5 py-3 border-t border-border-light flex items-center justify-end gap-2">
+                  <button onClick={()=>{setActiveModal(null);setModalFormData({});}} className="px-4 py-2 rounded-lg text-xs font-medium text-text-secondary hover:bg-surface-alt transition-colors cursor-pointer">Cancel</button>
+                  <button onClick={addPending} className="px-4 py-2 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors cursor-pointer shadow-sm flex items-center gap-1.5">
+                    <PlusIcon className="w-3.5 h-3.5" />Add to Pending
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
         </div>
       </div>
     </div>
