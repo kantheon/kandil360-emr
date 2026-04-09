@@ -25,7 +25,11 @@ export default function AppointmentsTab({ patient }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [formData, setFormData] = useState({ type: '', provider: '', date: '', time: '', location: '', duration: '30 min' });
 
-  const allAppointments = patient.appointments;
+  const allAppointments = [...(patient.appointments || [])].sort((a, b) => {
+    const da = a.date || '9999'; const db = b.date || '9999';
+    if (da !== db) return da.localeCompare(db);
+    return (a.time || '').localeCompare(b.time || '');
+  });
   const [expandedAppts, setExpandedAppts] = useState(new Set(allAppointments.map((_, i) => i)));
 
   const toggleAppt = (i) => {
