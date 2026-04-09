@@ -583,6 +583,23 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
             </div>
           </InfoCard>
 
+          <InfoCard title="Authorizations" icon={ShieldCheckIcon} count={(patient.authorizations || []).length}>
+            <div className="space-y-2">
+              {(patient.authorizations || []).map((auth, i) => (
+                <div key={auth.id || i} className="bg-surface-alt rounded-lg p-2.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-semibold text-text-primary">{auth.serviceType}</p>
+                    <span className={`badge text-[9px] ${auth.status === 'Approved' ? 'badge-active' : auth.status === 'Denied' ? 'badge-critical' : auth.status === 'Pending Review' ? 'badge-warning' : 'badge-info'}`}>{auth.status}</span>
+                  </div>
+                  <p className="text-[11px] text-text-muted">{auth.serviceRequested}</p>
+                  <p className="text-[11px] text-text-muted">Auth#: {auth.authNumber} · Exp: {auth.expirationDate || 'N/A'}</p>
+                  {auth.approvedUnits && <p className="text-[11px] text-text-muted">Units: {auth.usedUnits || 0}/{auth.approvedUnits} used</p>}
+                </div>
+              ))}
+              {(patient.authorizations || []).length === 0 && <p className="text-xs text-text-muted">No authorizations</p>}
+            </div>
+          </InfoCard>
+
           <InfoCard title="Emergency Contact" icon={UserGroupIcon}>
             <div className="text-xs"><p className="font-semibold text-text-primary">{patient.emergencyContact.name}</p><p className="text-text-muted">{patient.emergencyContact.relation} &middot; {patient.emergencyContact.phone}</p></div>
           </InfoCard>

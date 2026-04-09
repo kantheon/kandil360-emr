@@ -232,9 +232,9 @@ export default function CommunicationsTab({ patient }) {
         <div className="space-y-3 mb-4">
           <SearchableDropdown label="Call Type" options={callSubjects} value={subject} onChange={setSubject} placeholder="Search or type subject..." />
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Summary</label><textarea className="textarea-field text-xs" rows={3} placeholder="Summarize..." value={summary} onChange={e => setSummary(e.target.value)} /></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
             <SearchableDropdown label="Outcome" options={callOutcomes} value={outcome} onChange={setOutcome} placeholder="Search outcome..." />
-            <div><label className="text-xs font-medium text-text-secondary mb-1 block">Follow-up</label><input type="date" className="input-field py-2 text-xs" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} /></div>
+            <div><label className="text-xs font-medium text-text-secondary mb-1 block">Follow-up Date</label><input type="date" className="input-field py-[9px] text-xs" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} /></div>
           </div>
         </div>
       </Modal>
