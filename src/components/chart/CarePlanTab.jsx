@@ -139,22 +139,20 @@ export default function CarePlanTab({ patient }) {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="flex gap-2 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* Filter */}
+      <div className="flex gap-2">
         {[
-          { key: 'All', label: 'All', count: allGoals.length, bg: 'bg-white', text: 'text-text-primary', border: 'border-border' },
-          { key: 'Active', label: 'Active', count: active, bg: 'bg-primary-50', text: 'text-primary-700', border: 'border-primary-200' },
-          { key: 'Initiated', label: 'Initiated', count: initiated, bg: 'bg-surface-alt', text: 'text-text-secondary', border: 'border-border' },
-          { key: 'Completed', label: 'Completed', count: completed, bg: 'bg-accent-50', text: 'text-accent-700', border: 'border-accent-200' },
-          { key: 'Not Met', label: 'Not Met', count: allGoals.filter(g => getGoalStatus(g) === 'Not Met').length, bg: 'bg-danger-50', text: 'text-danger-600', border: 'border-danger-200' },
-          { key: 'Deferred', label: 'Deferred', count: allGoals.filter(g => getGoalStatus(g) === 'Deferred').length, bg: 'bg-surface-alt', text: 'text-text-muted', border: 'border-border' },
+          { key: 'All', label: 'All', count: allGoals.length },
+          { key: 'Active', label: 'Active', count: allGoals.filter(g => !['Completed', 'Deferred'].includes(getGoalStatus(g))).length },
+          { key: 'Completed', label: 'Completed', count: allGoals.filter(g => getGoalStatus(g) === 'Completed').length },
+          { key: 'Deferred', label: 'Deferred', count: allGoals.filter(g => getGoalStatus(g) === 'Deferred').length },
         ].map(f => (
           <button key={f.key} onClick={() => setStatusFilter(f.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer shrink-0 ${
-              statusFilter === f.key ? `${f.bg} ${f.text} ${f.border} shadow-sm` : 'bg-white text-text-muted border-border-light hover:bg-surface-alt'
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+              statusFilter === f.key ? 'bg-primary-600 text-white border-primary-600 shadow-sm' : 'bg-white text-text-secondary border-border-light hover:bg-surface-alt'
             }`}>
             {f.label}
-            <span className={`text-[10px] font-bold ${statusFilter === f.key ? '' : 'text-text-muted'}`}>{f.count}</span>
+            <span className={`text-[10px] ${statusFilter === f.key ? 'text-primary-200' : 'text-text-muted'}`}>{f.count}</span>
           </button>
         ))}
       </div>
@@ -164,7 +162,7 @@ export default function CarePlanTab({ patient }) {
         {allGoals.filter(goal => {
           if (statusFilter === 'All') return true;
           const s = getGoalStatus(goal);
-          if (statusFilter === 'Active') return ['In Progress', 'Partially Met'].includes(s);
+          if (statusFilter === 'Active') return !['Completed', 'Deferred'].includes(s);
           return s === statusFilter;
         }).map(goal => {
           const status = getGoalStatus(goal);
