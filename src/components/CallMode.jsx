@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   XMarkIcon, MinusIcon, PhoneIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon,
   DocumentTextIcon, ChatBubbleLeftRightIcon, ClipboardDocumentCheckIcon,
@@ -336,6 +337,300 @@ function InfoCard({ title, icon: Icon, children, count, action }) {
   );
 }
 
+/* ── Left Panel with tabs ── */
+function CallModeLeftPanel({ patient, mergedAppointments, mergedGoals, addEntry }) {
+  const [tab, setTab] = useState('overview');
+  const [detailItem, setDetailItem] = useState(null);
+
+  const leftTabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'notes', label: 'Notes' },
+    { id: 'comms', label: 'Comms' },
+    { id: 'appts', label: 'Appts' },
+    { id: 'admissions', label: 'Admissions' },
+    { id: 'careplan', label: 'Care Plan' },
+    { id: 'auths', label: 'Auths' },
+    { id: 'meds', label: 'Meds' },
+  ];
+
+  const getNoteFields = (note) => {
+    const nt = noteTypes.find(t => t.name === note.type || t.id === note.typeId);
+    if (nt) return nt.fields.filter(f => note[f]).map(f => ({ label: nt.labels[f], value: note[f] }));
+    if (note.subjective) return [{ label: 'Subjective', value: note.subjective }, { label: 'Objective', value: note.objective }, { label: 'Assessment', value: note.assessment }, { label: 'Plan', value: note.plan }].filter(f => f.value);
+    if (note.data) return [{ label: 'Data', value: note.data }, { label: 'Action', value: note.action }, { label: 'Response', value: note.response }].filter(f => f.value);
+    return [];
+  };
+
+  return (
+    <div className="flex-1 flex flex-col lg:border-r border-border-light overflow-hidden">
+      {/* Quick stats */}
+      <div className="grid grid-cols-4 gap-1.5 px-3 pt-3 pb-2 shrink-0">
+        {[['PCP', patient.pcp], ['Insurance', patient.insurance.plan.split(' - ')[0]], ['Program', patient.caseInfo.program], ['Acuity', patient.caseInfo.acuity]].map(([l, v]) => (
+          <div key={l} className="bg-surface-alt rounded-lg px-2 py-1.5 text-center">
+            <p className="text-[9px] text-text-muted font-medium uppercase">{l}</p>
+            <p className={`text-[11px] font-semibold ${l === 'Acuity' && v === 'High' ? 'text-danger-500' : 'text-text-primary'} truncate`}>{v}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-0 px-2 border-b border-border-light shrink-0 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {leftTabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={`px-2.5 py-2 text-[11px] font-medium whitespace-nowrap cursor-pointer transition-colors ${tab === t.id ? 'text-primary-700 border-b-2 border-primary-600' : 'text-text-muted hover:text-text-primary'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto p-3">
+        {/* OVERVIEW */}
+        {tab === 'overview' && (
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Diagnoses</p>
+              <div className="space-y-1">{patient.diagnoses.map((dx, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs"><span className="badge badge-info text-[9px]">{dx.code}</span><span className="text-text-primary">{dx.description}</span></div>
+              ))}</div>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Medications</p>
+              <div className="space-y-1">{patient.medications.map((m, i) => (
+                <div key={i} className="flex justify-between text-xs"><span><span className="font-medium">{m.name}</span> {m.dose} {m.frequency}</span><span className="text-text-muted">{m.prescriber}</span></div>
+              ))}</div>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Insurance</p>
+              <div className="space-y-0.5 text-xs">
+                {[['Plan', patient.insurance.plan], ['Member ID', patient.insurance.memberId], ['Copay', patient.insurance.copay]].map(([l, v]) => (
+                  <div key={l} className="flex justify-between"><span className="text-text-muted">{l}</span><span className="font-medium text-text-primary">{v}</span></div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Emergency Contact</p>
+              <p className="text-xs font-medium text-text-primary">{patient.emergencyContact.name} ({patient.emergencyContact.relation})</p>
+              <p className="text-xs text-text-muted">{patient.emergencyContact.phone}</p>
+            </div>
+          </div>
+        )}
+
+        {/* NOTES */}
+        {tab === 'notes' && (
+          <div className="space-y-2">
+            {(patient.progressNotes || []).length === 0 && <p className="text-xs text-text-muted text-center py-4">No notes</p>}
+            {(patient.progressNotes || []).map((note, i) => (
+              <button key={note.id || i} onClick={() => setDetailItem({ type: 'note', data: note })} className="w-full text-left card p-3 hover:bg-surface-alt transition-colors cursor-pointer">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="badge badge-info text-[9px]">{note.type || 'Note'}</span>
+                  <span className="text-[10px] text-text-muted">{note.date} {note.time}</span>
+                </div>
+                <p className="text-xs text-text-secondary truncate">{note.subjective || note.data || note.narrative || note.callPurpose || Object.values(note).find(v => typeof v === 'string' && v.length > 20) || ''}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* COMMS */}
+        {tab === 'comms' && (
+          <div className="space-y-2">
+            {(patient.communications || []).length === 0 && <p className="text-xs text-text-muted text-center py-4">No communications</p>}
+            {(patient.communications || []).map((comm, i) => (
+              <button key={comm.id || i} onClick={() => setDetailItem({ type: 'comm', data: comm })} className="w-full text-left card p-3 hover:bg-surface-alt transition-colors cursor-pointer">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`badge text-[9px] ${comm.direction === 'Outbound' ? 'badge-info' : 'badge-active'}`}>{comm.direction}</span>
+                  <span className="text-xs font-medium text-text-primary truncate flex-1">{comm.subject}</span>
+                  <span className="text-[10px] text-text-muted">{comm.date}</span>
+                </div>
+                <p className="text-xs text-text-secondary truncate">{comm.summary}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* APPOINTMENTS */}
+        {tab === 'appts' && (
+          <div className="space-y-2">
+            <button onClick={() => addEntry('appointment')} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700 mb-2"><PlusIcon className="w-3.5 h-3.5" />Schedule Appointment</button>
+            {mergedAppointments.map((a, i) => {
+              const d = a.date ? new Date(a.date + 'T00:00:00') : null;
+              const valid = d && !isNaN(d.getTime());
+              return (
+                <div key={i} className="card p-3 flex items-center gap-3">
+                  <div className="bg-primary-50 rounded-md p-1.5 text-center min-w-[40px]">
+                    {valid ? (<><p className="text-[9px] text-primary-500 font-medium">{d.toLocaleDateString('en-US', { month: 'short' })}</p><p className="text-base font-bold text-primary-700 leading-tight">{d.getDate()}</p></>) : <p className="text-[10px] font-bold text-primary-700">TBD</p>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-text-primary">{a.type}</p>
+                    <p className="text-[11px] text-text-muted">{a.provider}{a.time ? ` · ${a.time}` : ''}</p>
+                  </div>
+                  <span className="badge badge-active text-[9px]">{a.status}</span>
+                </div>
+              );
+            })}
+            {mergedAppointments.length === 0 && <p className="text-xs text-text-muted text-center py-4">No appointments</p>}
+          </div>
+        )}
+
+        {/* ADMISSIONS */}
+        {tab === 'admissions' && (
+          <div className="space-y-2">
+            {patient.admissions.map((a, i) => (
+              <button key={i} onClick={() => setDetailItem({ type: 'admission', data: a })} className="w-full text-left card p-3 hover:bg-surface-alt transition-colors cursor-pointer">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-semibold text-text-primary">{a.facility}</p>
+                  {!a.dischargeDate && <span className="badge badge-critical text-[9px]">Current</span>}
+                </div>
+                <p className="text-[11px] text-text-muted">{a.admitDiagnosis}</p>
+                <p className="text-[11px] text-text-muted">{a.admitDate}{a.dischargeDate ? ` → ${a.dischargeDate}` : ' → Present'}</p>
+              </button>
+            ))}
+            {patient.admissions.length === 0 && <p className="text-xs text-text-muted text-center py-4">No admissions</p>}
+          </div>
+        )}
+
+        {/* CARE PLAN */}
+        {tab === 'careplan' && (
+          <div className="space-y-2">
+            <button onClick={() => addEntry('goal')} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700 mb-2"><PlusIcon className="w-3.5 h-3.5" />Add Goal</button>
+            {mergedGoals.map(g => (
+              <button key={g.id} onClick={() => setDetailItem({ type: 'goal', data: g })} className="w-full text-left card p-3 hover:bg-surface-alt transition-colors cursor-pointer">
+                {g.healthConcern && <p className="text-[10px] text-text-muted font-medium uppercase">{g.healthConcern}</p>}
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs text-text-primary">{g.description}</p>
+                  <span className={`badge text-[9px] shrink-0 ${g.status === 'Met' ? 'badge-active' : g.status === 'On Track' ? 'badge-info' : 'badge-warning'}`}>{g.status}</span>
+                </div>
+              </button>
+            ))}
+            {patient.carePlan.barriers.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-border-light">
+                <p className="text-[10px] font-semibold text-text-secondary mb-1">Barriers</p>
+                {patient.carePlan.barriers.map((b, i) => <p key={i} className="text-[11px] text-text-muted flex items-start gap-1"><ExclamationCircleIcon className="w-3 h-3 text-warn-500 shrink-0 mt-0.5" />{b}</p>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AUTHS */}
+        {tab === 'auths' && (
+          <div className="space-y-2">
+            {(patient.authorizations || []).map((auth, i) => (
+              <button key={auth.id || i} onClick={() => setDetailItem({ type: 'auth', data: auth })} className="w-full text-left card p-3 hover:bg-surface-alt transition-colors cursor-pointer">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-semibold text-text-primary">{auth.serviceType}</p>
+                  <span className={`badge text-[9px] ${auth.status === 'Approved' ? 'badge-active' : auth.status === 'Denied' ? 'badge-critical' : 'badge-warning'}`}>{auth.status}</span>
+                </div>
+                <p className="text-[11px] text-text-muted">{auth.serviceRequested}</p>
+                <p className="text-[11px] text-text-muted">Auth#: {auth.authNumber}</p>
+              </button>
+            ))}
+            {(patient.authorizations || []).length === 0 && <p className="text-xs text-text-muted text-center py-4">No authorizations</p>}
+          </div>
+        )}
+
+        {/* MEDS */}
+        {tab === 'meds' && (
+          <div className="space-y-2">
+            {patient.medications.map((m, i) => (
+              <div key={i} className="card p-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center shrink-0"><span className="text-[10px] font-bold text-primary-600">Rx</span></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-text-primary">{m.name}</p>
+                  <p className="text-[11px] text-text-muted">{m.dose} {m.frequency} · {m.prescriber}</p>
+                </div>
+                <span className="badge badge-active text-[9px]">{m.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Detail Modal */}
+      {detailItem && createPortal(
+        <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30" onClick={() => setDetailItem(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col animate-fade-in">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border-light shrink-0">
+              <h2 className="text-sm font-semibold text-text-primary">
+                {detailItem.type === 'note' ? (detailItem.data.type || 'Note') :
+                 detailItem.type === 'comm' ? 'Communication' :
+                 detailItem.type === 'admission' ? 'Admission' :
+                 detailItem.type === 'goal' ? 'Care Plan Goal' :
+                 detailItem.type === 'auth' ? 'Authorization' : 'Details'}
+              </h2>
+              <button onClick={() => setDetailItem(null)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-muted cursor-pointer"><XMarkIcon className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {/* Note detail */}
+              {detailItem.type === 'note' && (() => {
+                const note = detailItem.data;
+                const fields = getNoteFields(note);
+                return (<>
+                  <div className="flex items-center gap-2 text-xs text-text-muted"><span className="badge badge-info text-[9px]">{note.type}</span>{note.date} {note.time} · {note.author}</div>
+                  {fields.map(f => (
+                    <div key={f.label} className="bg-surface-alt rounded-lg p-3 border border-border-light">
+                      <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1">{f.label}</p>
+                      <p className="text-xs text-text-primary leading-relaxed">{f.value}</p>
+                    </div>
+                  ))}
+                </>);
+              })()}
+              {/* Comm detail */}
+              {detailItem.type === 'comm' && (() => {
+                const c = detailItem.data;
+                return (<>
+                  <div className="flex items-center gap-2 text-xs"><span className={`badge text-[9px] ${c.direction === 'Outbound' ? 'badge-info' : 'badge-active'}`}>{c.direction}</span><span className="text-text-muted">{c.date} {c.time}</span></div>
+                  <div className="bg-surface-alt rounded-lg p-3"><p className="text-[10px] text-text-muted uppercase font-semibold mb-1">Subject</p><p className="text-xs font-medium text-text-primary">{c.subject}</p></div>
+                  <div className="bg-surface-alt rounded-lg p-3"><p className="text-[10px] text-text-muted uppercase font-semibold mb-1">Contact</p><p className="text-xs text-text-primary">{c.contactPerson} ({c.contactRole})</p></div>
+                  <div className="bg-surface-alt rounded-lg p-3"><p className="text-[10px] text-text-muted uppercase font-semibold mb-1">Summary</p><p className="text-xs text-text-primary leading-relaxed">{c.summary}</p></div>
+                  <div className="flex gap-3 text-xs"><span className="text-text-muted">Outcome:</span><span className="font-medium">{c.outcome}</span></div>
+                  {c.followUpDate && <div className="flex gap-3 text-xs"><span className="text-text-muted">Follow-up:</span><span className="font-medium text-warn-500">{c.followUpDate}</span></div>}
+                </>);
+              })()}
+              {/* Admission detail */}
+              {detailItem.type === 'admission' && (() => {
+                const a = detailItem.data;
+                return (<>
+                  <p className="text-sm font-semibold text-text-primary">{a.facility}</p>
+                  {[['Type', a.facilityType], ['Admit Date', a.admitDate], ['Discharge', a.dischargeDate || 'Current'], ['Diagnosis', a.admitDiagnosis], ['Attending', a.attendingPhysician], ['Level of Care', a.levelOfCare], ['LOS', a.lengthOfStay ? `${a.lengthOfStay} days` : 'Ongoing'], ['Disposition', a.dischargeDisposition]].filter(([, v]) => v).map(([l, v]) => (
+                    <div key={l} className="flex justify-between text-xs"><span className="text-text-muted">{l}</span><span className="font-medium text-text-primary">{v}</span></div>
+                  ))}
+                </>);
+              })()}
+              {/* Goal detail */}
+              {detailItem.type === 'goal' && (() => {
+                const g = detailItem.data;
+                return (<>
+                  {g.healthConcern && <div className="bg-danger-50 rounded-lg p-3 border border-danger-100"><p className="text-[10px] font-semibold text-danger-600 uppercase">Health Concern</p><p className="text-xs text-danger-700">{g.healthConcern}</p></div>}
+                  <div className="bg-primary-50 rounded-lg p-3 border border-primary-100">
+                    <p className="text-[10px] font-semibold text-primary-600 uppercase">Goal</p>
+                    <p className="text-xs text-primary-800">{g.description}</p>
+                    <div className="flex gap-2 mt-1"><span className={`badge text-[9px] ${g.status === 'Met' ? 'badge-active' : 'badge-warning'}`}>{g.status}</span><span className="text-[10px] text-text-muted">Target: {g.targetDate || 'Not set'}</span></div>
+                  </div>
+                  {(g.interventions || []).length > 0 && (<div><p className="text-[10px] font-semibold text-text-secondary uppercase mb-1">Interventions</p>{g.interventions.map((iv, i) => <div key={i} className="flex items-start gap-2 bg-accent-50 rounded-lg p-2 mb-1 text-xs border border-accent-100"><span className="w-4 h-4 bg-accent-100 text-accent-700 rounded text-[9px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>{iv}</div>)}</div>)}
+                </>);
+              })()}
+              {/* Auth detail */}
+              {detailItem.type === 'auth' && (() => {
+                const a = detailItem.data;
+                return (<>
+                  <div className="flex items-center justify-between"><p className="text-sm font-semibold text-text-primary">{a.serviceType}</p><span className={`badge ${a.status === 'Approved' ? 'badge-active' : a.status === 'Denied' ? 'badge-critical' : 'badge-warning'}`}>{a.status}</span></div>
+                  {[['Auth #', a.authNumber], ['Service', a.serviceRequested], ['Diagnosis', a.diagnosisCode], ['Request Date', a.requestDate], ['Decision Date', a.decisionDate], ['Expiration', a.expirationDate], ['Priority', a.priority], ['Reviewer', a.reviewerName]].filter(([, v]) => v).map(([l, v]) => (
+                    <div key={l} className="flex justify-between text-xs"><span className="text-text-muted">{l}</span><span className="font-medium text-text-primary">{v}</span></div>
+                  ))}
+                  {a.approvedUnits && <div className="flex justify-between text-xs"><span className="text-text-muted">Units</span><span className="font-medium">{a.usedUnits || 0} / {a.approvedUnits} used</span></div>}
+                  {a.clinicalRationale && <div className="bg-surface-alt rounded-lg p-3"><p className="text-[10px] font-semibold text-text-secondary uppercase mb-1">Clinical Rationale</p><p className="text-xs text-text-primary">{a.clinicalRationale}</p></div>}
+                </>);
+              })()}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 /* ── Previous entries card with proper collapsible items ── */
 function PreviousEntriesCard({ title, icon: Icon, entries, renderHeader, renderPreview, renderBody }) {
   const [open, setOpen] = useState(false);
@@ -536,133 +831,8 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
 
       {/* Split */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* LEFT */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 lg:border-r border-border-light">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            {[['PCP',patient.pcp],['Insurance',patient.insurance.plan.split(' - ')[0]],['Program',patient.caseInfo.program],['Acuity',patient.caseInfo.acuity]].map(([l,v])=>(
-              <div key={l} className="card px-4 py-3">
-                <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider">{l}</p>
-                <p className={`text-xs font-semibold mt-0.5 ${l==='Acuity'&&v==='High'?'text-danger-500':'text-text-primary'}`}>{v}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
-          <InfoCard title="Diagnoses" icon={HeartIcon} count={patient.diagnoses.length} defaultOpen>
-            <div className="space-y-1.5">{patient.diagnoses.map((dx,i)=>(
-              <div key={i} className="flex items-start gap-2">
-                <span className="badge badge-info text-[9px] shrink-0 mt-0.5">{dx.code}</span>
-                <div><p className="text-xs font-medium text-text-primary">{dx.description}</p><p className="text-[10px] text-text-muted">Since {dx.onsetDate}</p></div>
-              </div>
-            ))}</div>
-          </InfoCard>
-
-          <InfoCard title="Medications" icon={BeakerIcon} count={patient.medications.length}>
-            <div className="space-y-1.5">{patient.medications.map((m,i)=>(
-              <div key={i} className="flex items-center justify-between text-xs">
-                <div><span className="font-medium text-text-primary">{m.name}</span> <span className="text-text-muted">{m.dose} {m.frequency}</span></div>
-                <span className="text-[10px] text-text-muted">{m.prescriber}</span>
-              </div>
-            ))}</div>
-          </InfoCard>
-
-          <InfoCard title="Appointments" icon={CalendarDaysIcon} count={mergedAppointments.length} defaultOpen
-            action={<button onClick={()=>addEntry('appointment')} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700"><PlusIcon className="w-3.5 h-3.5" />Schedule Appointment</button>}>
-            <div className="space-y-2">{mergedAppointments.map((a,i)=>{
-              const d = a.date ? new Date(a.date+'T00:00:00') : null;
-              const validDate = d && !isNaN(d.getTime());
-              return (
-              <div key={i} className="flex items-center gap-3 bg-surface-alt rounded-lg p-2.5">
-                <div className="bg-primary-50 rounded-md p-1.5 text-center min-w-[40px]">
-                  {validDate ? (<>
-                    <p className="text-[9px] text-primary-500 font-medium">{d.toLocaleDateString('en-US',{month:'short'})}</p>
-                    <p className="text-base font-bold text-primary-700 leading-tight">{d.getDate()}</p>
-                  </>) : (
-                    <p className="text-[10px] font-bold text-primary-700">TBD</p>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-text-primary">{a.type}</p>
-                  <p className="text-[11px] text-text-muted">{a.provider}{a.time ? ` · ${a.time}` : ''}{a.location ? ` · ${a.location}` : ''}</p>
-                </div>
-                <span className="badge badge-active text-[9px]">{a.status}</span>
-              </div>);
-            })}{mergedAppointments.length===0&&<p className="text-xs text-text-muted">None</p>}</div>
-          </InfoCard>
-
-          <InfoCard title="Admissions" icon={BuildingOffice2Icon} count={patient.admissions.length}>
-            <div className="space-y-2">{patient.admissions.map((a,i)=>(
-              <div key={i} className="bg-surface-alt rounded-lg p-2.5">
-                <div className="flex items-center justify-between mb-1"><p className="text-xs font-semibold text-text-primary">{a.facility}</p>{!a.dischargeDate&&<span className="badge badge-critical text-[9px]">Current</span>}</div>
-                <p className="text-[11px] text-text-muted">{a.admitDiagnosis} &middot; {a.admitDate}{a.dischargeDate?` → ${a.dischargeDate}`:' → Present'}</p>
-              </div>
-            ))}{patient.admissions.length===0&&<p className="text-xs text-text-muted">No admissions</p>}</div>
-          </InfoCard>
-
-          <InfoCard title="Care Plan" icon={FlagIcon} count={mergedGoals.length}
-            action={<button onClick={()=>addEntry('goal')} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700"><PlusIcon className="w-3.5 h-3.5" />Add Goal</button>}>
-            <div className="space-y-2">
-              {mergedGoals.map(g=>(<div key={g.id} className="flex items-start justify-between gap-2"><p className="text-xs text-text-secondary">{g.description}</p><span className={`badge text-[9px] shrink-0 ${g.status==='Met'?'badge-active':g.status==='On Track'?'badge-info':'badge-warning'}`}>{g.status}</span></div>))}
-              {patient.carePlan.barriers.length>0&&(<div className="pt-2 mt-2 border-t border-border-light"><p className="text-[10px] font-semibold text-text-secondary mb-1">Barriers</p>{patient.carePlan.barriers.map((b,i)=>(<div key={i} className="flex items-start gap-1.5 text-[11px] text-text-muted"><ExclamationCircleIcon className="w-3 h-3 text-warn-500 shrink-0 mt-0.5" />{b}</div>))}</div>)}
-            </div>
-          </InfoCard>
-
-          <InfoCard title="Insurance / Auth" icon={ShieldCheckIcon}>
-            <div className="space-y-1 text-xs">
-              {[['Plan',patient.insurance.plan],['Member ID',patient.insurance.memberId],['Group',patient.insurance.groupNumber],['Copay',patient.insurance.copay],['Status',patient.insurance.status]].map(([l,v])=>(
-                <div key={l} className="flex justify-between"><span className="text-text-muted">{l}</span><span className={`font-medium ${l==='Status'?'text-accent-600':'text-text-primary'}`}>{v}</span></div>
-              ))}
-            </div>
-          </InfoCard>
-
-          <InfoCard title="Authorizations" icon={ShieldCheckIcon} count={(patient.authorizations || []).length}>
-            <div className="space-y-2">
-              {(patient.authorizations || []).map((auth, i) => (
-                <div key={auth.id || i} className="bg-surface-alt rounded-lg p-2.5">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-semibold text-text-primary">{auth.serviceType}</p>
-                    <span className={`badge text-[9px] ${auth.status === 'Approved' ? 'badge-active' : auth.status === 'Denied' ? 'badge-critical' : auth.status === 'Pending Review' ? 'badge-warning' : 'badge-info'}`}>{auth.status}</span>
-                  </div>
-                  <p className="text-[11px] text-text-muted">{auth.serviceRequested}</p>
-                  <p className="text-[11px] text-text-muted">Auth#: {auth.authNumber} · Exp: {auth.expirationDate || 'N/A'}</p>
-                  {auth.approvedUnits && <p className="text-[11px] text-text-muted">Units: {auth.usedUnits || 0}/{auth.approvedUnits} used</p>}
-                </div>
-              ))}
-              {(patient.authorizations || []).length === 0 && <p className="text-xs text-text-muted">No authorizations</p>}
-            </div>
-          </InfoCard>
-
-          <InfoCard title="Emergency Contact" icon={UserGroupIcon}>
-            <div className="text-xs"><p className="font-semibold text-text-primary">{patient.emergencyContact.name}</p><p className="text-text-muted">{patient.emergencyContact.relation} &middot; {patient.emergencyContact.phone}</p></div>
-          </InfoCard>
-
-          {/* Previous Notes & Communications */}
-          <PreviousEntriesCard title="Previous Notes" icon={DocumentTextIcon} entries={(patient.progressNotes || []).slice(0, 10)} renderHeader={(note) => (
-            <><span className="badge badge-info text-[9px]">{note.type}</span><span className="badge badge-neutral text-[9px]">{note.contactMethod}</span><span className="text-text-muted text-[10px]">{note.date}</span></>
-          )} renderPreview={(note) => (note.subjective || note.data || note.assessment || '').slice(0, 80)} renderBody={(note) => (
-            <div className="space-y-1.5 text-[11px]">
-              {note.type === 'SOAP' ? (
-                <>{note.subjective&&<div><span className="font-semibold text-primary-600">S:</span> {note.subjective}</div>}{note.objective&&<div><span className="font-semibold text-accent-600">O:</span> {note.objective}</div>}{note.assessment&&<div><span className="font-semibold text-warn-500">A:</span> {note.assessment}</div>}{note.plan&&<div><span className="font-semibold text-danger-500">P:</span> {note.plan}</div>}</>
-              ) : (
-                <>{note.data&&<div><span className="font-semibold text-primary-600">D:</span> {note.data}</div>}{note.action&&<div><span className="font-semibold text-accent-600">A:</span> {note.action}</div>}{note.response&&<div><span className="font-semibold text-warn-500">R:</span> {note.response}</div>}</>
-              )}
-              <p className="text-[10px] text-text-muted">{note.author} &middot; {note.time}</p>
-            </div>
-          )} />
-
-          <PreviousEntriesCard title="Previous Communications" icon={ChatBubbleLeftRightIcon} entries={(patient.communications || []).slice(0, 10)} renderHeader={(comm) => (
-            <><span className={`badge text-[9px] ${comm.direction==='Outbound'?'badge-info':'badge-active'}`}>{comm.direction}</span><span className="font-medium text-text-primary truncate">{comm.subject}</span><span className="text-text-muted text-[10px] shrink-0">{comm.date}</span></>
-          )} renderPreview={(comm) => (comm.summary || '').slice(0, 90)} renderBody={(comm) => (
-            <div className="text-[11px] text-text-secondary">
-              <p>{comm.summary}</p>
-              <div className="flex flex-wrap gap-3 mt-1.5 text-[10px] text-text-muted">
-                <span>{comm.contactPerson} ({comm.contactRole})</span>
-                <span>Outcome: {comm.outcome}</span>
-              </div>
-            </div>
-          )} />
-          </div>
-        </div>
+        {/* LEFT - Tabbed patient view */}
+        <CallModeLeftPanel patient={patient} mergedAppointments={mergedAppointments} mergedGoals={mergedGoals} addEntry={addEntry} />
 
         {/* RIGHT - Documentation */}
         <div className="w-full lg:w-[440px] flex flex-col bg-white shrink-0 min-h-[40vh] lg:min-h-0 border-t lg:border-t-0">
