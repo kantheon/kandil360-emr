@@ -12,6 +12,7 @@ import { carePlanLibrary } from '../data/carePlanLibrary';
 import { addPatientEntry, getPatientEntries } from '../data/localStore';
 import { getPatientContacts } from '../data/contactHelpers';
 import { callSubjects } from '../data/callSubjects';
+import { noteTypes } from '../data/noteTypes';
 import { callOutcomes } from '../data/callOutcomes';
 import SearchableDropdown from './SearchableDropdown';
 
@@ -68,18 +69,29 @@ function getEntryTitle(entry) {
 
 /* ── Forms ── */
 function NoteForm({ entry, onChange, disabled }) {
+  const selectedType = noteTypes.find(t => t.id === entry.noteTypeId) || noteTypes[0];
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <select disabled={disabled} value={entry.noteType||'SOAP'} onChange={e=>onChange({...entry,noteType:e.target.value})} className="input-field py-1.5 text-xs disabled:opacity-60"><option value="SOAP">SOAP</option><option value="DAR">DAR</option></select>
-        <select disabled={disabled} value={entry.contactMethod||'Phone'} onChange={e=>onChange({...entry,contactMethod:e.target.value})} className="input-field py-1.5 text-xs disabled:opacity-60"><option>Phone</option><option>Video</option><option>In-Person</option></select>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {disabled ? (
+          <div className="text-xs"><span className="text-text-muted">Type:</span> <span className="font-medium">{entry.noteTypeName || selectedType.name}</span></div>
+        ) : (
+          <SearchableDropdown label="Note Type" options={noteTypes.map(t=>t.name)} value={selectedType.name} onChange={v=>{const t=noteTypes.find(n=>n.name===v);if(t)onChange({...entry,noteTypeId:t.id,noteTypeName:t.name});}} placeholder="Search type..." small />
+        )}
+        <div>
+          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Method</label>
+          <select disabled={disabled} value={entry.contactMethod||'Phone'} onChange={e=>onChange({...entry,contactMethod:e.target.value})} className="input-field py-1.5 text-xs disabled:opacity-60">
+            <option>Phone</option><option>Video</option><option>In-Person</option><option>Email</option><option>Fax</option><option>Portal</option>
+          </select>
+        </div>
       </div>
-      {((entry.noteType||'SOAP')==='SOAP'?['Subjective','Objective','Assessment','Plan']:['Data','Action','Response']).map(f=>(
+      {selectedType.fields.map(f=>(
         <div key={f}>
           <label className="text-[11px] font-semibold text-text-secondary flex items-center gap-1 mb-0.5">
-            <span className={`w-4 h-4 ${(entry.noteType||'SOAP')==='SOAP'?'bg-primary-100 text-primary-700':'bg-accent-100 text-accent-700'} rounded text-[9px] font-bold flex items-center justify-center`}>{f[0]}</span>{f}
+            <span className="w-4 h-4 bg-primary-100 text-primary-700 rounded text-[9px] font-bold flex items-center justify-center">{selectedType.labels[f][0]}</span>
+            {selectedType.labels[f]}
           </label>
-          <textarea disabled={disabled} className="textarea-field text-xs !min-h-[48px] disabled:opacity-60" rows={2} placeholder={f+'...'} value={entry[f.toLowerCase()]||''} onChange={e=>onChange({...entry,[f.toLowerCase()]:e.target.value})} />
+          <textarea disabled={disabled} className="textarea-field text-xs !min-h-[48px] disabled:opacity-60" rows={2} placeholder={selectedType.labels[f]+'...'} value={entry[f]||''} onChange={e=>onChange({...entry,[f]:e.target.value})} />
         </div>
       ))}
     </div>
