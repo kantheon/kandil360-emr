@@ -373,44 +373,46 @@ function CallModeLeftPanel({ patient, mergedAppointments, mergedGoals, addEntry 
         ))}
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-0 px-2 border-b border-border-light shrink-0 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-        {leftTabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`px-2.5 py-2 text-[11px] font-medium whitespace-nowrap cursor-pointer transition-colors ${tab === t.id ? 'text-primary-700 border-b-2 border-primary-600' : 'text-text-muted hover:text-text-primary'}`}>
-            {t.label}
-          </button>
-        ))}
+      {/* Tab bar - matching main chart style */}
+      <div className="px-1.5 overflow-x-auto bg-surface-alt border-b border-border-light shrink-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex gap-0.5 py-1">
+          {leftTabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-medium whitespace-nowrap cursor-pointer transition-all ${tab === t.id ? 'bg-white text-primary-700 shadow-sm border border-border-light' : 'text-text-muted hover:bg-white/60 hover:text-text-primary border border-transparent'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-3">
         {/* OVERVIEW */}
         {tab === 'overview' && (
-          <div className="space-y-3">
-            <div>
-              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Diagnoses</p>
-              <div className="space-y-1">{patient.diagnoses.map((dx, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs"><span className="badge badge-info text-[9px]">{dx.code}</span><span className="text-text-primary">{dx.description}</span></div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="card p-3">
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Diagnoses</p>
+              <div className="space-y-1.5">{patient.diagnoses.map((dx, i) => (
+                <div key={i} className="flex items-start gap-2"><span className="badge badge-info text-[9px] shrink-0 mt-0.5">{dx.code}</span><div><p className="text-xs font-medium text-text-primary">{dx.description}</p><p className="text-[10px] text-text-muted">Since {dx.onsetDate}</p></div></div>
               ))}</div>
             </div>
-            <div>
-              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Medications</p>
-              <div className="space-y-1">{patient.medications.map((m, i) => (
-                <div key={i} className="flex justify-between text-xs"><span><span className="font-medium">{m.name}</span> {m.dose} {m.frequency}</span><span className="text-text-muted">{m.prescriber}</span></div>
+            <div className="card p-3">
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Medications</p>
+              <div className="space-y-1.5">{patient.medications.map((m, i) => (
+                <div key={i} className="flex justify-between text-xs"><div><span className="font-medium text-text-primary">{m.name}</span> <span className="text-text-muted">{m.dose} {m.frequency}</span></div><span className="text-[10px] text-text-muted">{m.prescriber}</span></div>
               ))}</div>
             </div>
-            <div>
-              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Insurance</p>
-              <div className="space-y-0.5 text-xs">
-                {[['Plan', patient.insurance.plan], ['Member ID', patient.insurance.memberId], ['Copay', patient.insurance.copay]].map(([l, v]) => (
-                  <div key={l} className="flex justify-between"><span className="text-text-muted">{l}</span><span className="font-medium text-text-primary">{v}</span></div>
+            <div className="card p-3">
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Insurance</p>
+              <div className="space-y-1 text-xs">
+                {[['Plan', patient.insurance.plan], ['Member ID', patient.insurance.memberId], ['Group', patient.insurance.groupNumber], ['Copay', patient.insurance.copay], ['Status', patient.insurance.status]].map(([l, v]) => (
+                  <div key={l} className="flex justify-between"><span className="text-text-muted">{l}</span><span className={`font-medium ${l === 'Status' ? 'text-accent-600' : 'text-text-primary'}`}>{v}</span></div>
                 ))}
               </div>
             </div>
-            <div>
-              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Emergency Contact</p>
-              <p className="text-xs font-medium text-text-primary">{patient.emergencyContact.name} ({patient.emergencyContact.relation})</p>
-              <p className="text-xs text-text-muted">{patient.emergencyContact.phone}</p>
+            <div className="card p-3">
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Emergency Contact</p>
+              <p className="text-xs font-semibold text-text-primary">{patient.emergencyContact.name}</p>
+              <p className="text-xs text-text-muted">{patient.emergencyContact.relation} &middot; {patient.emergencyContact.phone}</p>
             </div>
           </div>
         )}
