@@ -10,6 +10,7 @@ import { assessmentTemplates } from '../data/assessmentTemplates';
 import AppointmentScheduler from './AppointmentScheduler';
 import { carePlanLibrary } from '../data/carePlanLibrary';
 import { addPatientEntry, getPatientEntries } from '../data/localStore';
+import { getPatientContacts } from '../data/contactHelpers';
 
 /* ── Provider availability ── */
 // Generate real date slots for next 2 weeks per provider
@@ -82,17 +83,38 @@ function NoteForm({ entry, onChange, disabled }) {
   );
 }
 
-function CommForm({ entry, onChange, disabled }) {
+function CommForm({ entry, onChange, disabled, patient }) {
+  const contacts = patient ? getPatientContacts(patient) : [];
   return (
     <div className="space-y-2">
+      {/* Contact dropdown */}
+      {!disabled ? (
+        <div>
+          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Contact</label>
+          <select className="input-field py-1.5 text-xs" onChange={e => {
+            const c = contacts[e.target.value];
+            if (c) onChange({...entry, contactPerson: c.name, calledNumber: c.phone || '', contactRole: c.role || 'Patient'});
+          }}>
+            <option value="">Select contact...</option>
+            {contacts.map((c, i) => (
+              <option key={i} value={i}>{c.name} ({c.role}){c.phone ? ` - ${c.phone}` : ''}</option>
+            ))}
+          </select>
+          {entry.contactPerson && (
+            <div className="flex gap-2 mt-1 text-[11px]">
+              <span className="text-text-primary font-medium">{entry.contactPerson}</span>
+              {entry.calledNumber && <span className="text-text-muted">{entry.calledNumber}</span>}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="text-xs"><span className="text-text-muted">Contact:</span> <span className="font-medium">{entry.contactPerson} {entry.calledNumber && `(${entry.calledNumber})`}</span></div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <select disabled={disabled} value={entry.direction||'Outbound'} onChange={e=>onChange({...entry,direction:e.target.value})} className="input-field py-1.5 text-xs disabled:opacity-60"><option>Outbound</option><option>Inbound</option></select>
         <select disabled={disabled} value={entry.method||'Phone'} onChange={e=>onChange({...entry,method:e.target.value})} className="input-field py-1.5 text-xs disabled:opacity-60"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option></select>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="Contact person" value={entry.contactPerson||''} onChange={e=>onChange({...entry,contactPerson:e.target.value})} />
-        <select disabled={disabled} value={entry.contactRole||'Patient'} onChange={e=>onChange({...entry,contactRole:e.target.value})} className="input-field py-1.5 text-xs disabled:opacity-60"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option></select>
-      </div>
+      <select disabled={disabled} value={entry.contactRole||'Patient'} onChange={e=>onChange({...entry,contactRole:e.target.value})} className="input-field py-1.5 text-xs disabled:opacity-60"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option><option>Case Manager</option><option>Other</option></select>
       <input disabled={disabled} type="text" className="input-field py-1.5 text-xs disabled:opacity-60" placeholder="Subject" value={entry.subject||''} onChange={e=>onChange({...entry,subject:e.target.value})} />
       <textarea disabled={disabled} className="textarea-field text-xs !min-h-[48px] disabled:opacity-60" rows={2} placeholder="Summary..." value={entry.summary||''} onChange={e=>onChange({...entry,summary:e.target.value})} />
       <div className="grid grid-cols-2 gap-2">
@@ -633,7 +655,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                           {isOpen&&(
                             <div className="px-3 pb-3 pt-2 border-t border-border-light bg-white">
                               {entry.type==='note'&&<NoteForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
-                              {entry.type==='comm'&&<CommForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
+                              {entry.type==='comm'&&<CommForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} patient={patient} />}
                               {entry.type==='assessment'&&<AssessmentForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
                               {entry.type==='appointment'&&<AppointmentForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} />}
                               {entry.type==='goal'&&<GoalForm entry={entry.data} onChange={d=>updateEntry(entry.id,d)} disabled={entry.saved} patient={patient} />}

@@ -14,6 +14,7 @@ import {
 import Modal from '../Modal';
 import ConfirmDialog from '../ConfirmDialog';
 import { useData } from '../../contexts/DataContext';
+import { getPatientContacts, addCustomContact } from '../../data/contactHelpers';
 
 const directionIcons = { 'Outbound': PhoneArrowUpRightIcon, 'Inbound': PhoneArrowDownLeftIcon };
 const methodColors = { 'Phone': 'badge-info', 'Fax': 'badge-neutral', 'Email': 'badge-active', 'In-Person': 'badge-warning' };
@@ -43,17 +44,52 @@ export default function CommunicationsTab({ patient }) {
 
   const toggleComm = (id) => setExpandedComms(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
+  const [showNewContact, setShowNewContact] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+  const [newContactRole, setNewContactRole] = useState('Other');
+  const [contactsVersion, setContactsVersion] = useState(0);
+
+  const contacts = getPatientContacts(patient);
+  void contactsVersion; // trigger re-render when contacts change
+
   const resetForm = () => {
     setDirection('Outbound'); setMethod('Phone'); setContactPerson(''); setContactRole('Patient');
     setSubject(''); setSummary(''); setOutcome(''); setFollowUpDate('');
     setHipaaVerified(false); setPhoneConsent(false); setCalledNumber('');
+    setShowNewContact(false);
   };
 
-  // Build phone number options from patient data
-  const phoneOptions = [
-    { label: `Patient: ${patient.phone}`, value: patient.phone, person: `${patient.firstName} ${patient.lastName}` },
-    { label: `Emergency: ${patient.emergencyContact?.name} - ${patient.emergencyContact?.phone}`, value: patient.emergencyContact?.phone, person: patient.emergencyContact?.name },
-  ];
+  const handleSelectContact = (idx) => {
+    if (idx === '__new__') {
+      setShowNewContact(true);
+      setContactPerson('');
+      setCalledNumber('');
+      setContactRole('Other');
+      return;
+    }
+    setShowNewContact(false);
+    const c = contacts[idx];
+    if (c) {
+      setContactPerson(c.name);
+      setCalledNumber(c.phone || '');
+      setContactRole(c.role || 'Other');
+    }
+  };
+
+  const handleSaveNewContact = () => {
+    if (!newContactName.trim()) return;
+    const contact = { name: newContactName.trim(), phone: newContactPhone.trim(), role: newContactRole };
+    addCustomContact(patient.id, contact);
+    setContactPerson(contact.name);
+    setCalledNumber(contact.phone);
+    setContactRole(contact.role);
+    setShowNewContact(false);
+    setNewContactName('');
+    setNewContactPhone('');
+    setNewContactRole('Other');
+    setContactsVersion(v => v + 1);
+  };
 
   const openAddForm = () => {
     setEditingEntry(null);
@@ -132,65 +168,63 @@ export default function CommunicationsTab({ patient }) {
 
       {/* Modal Form */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title={editingEntry ? 'Edit Communication' : 'Log Communication'} wide footer={<div className="flex justify-end gap-2"><button onClick={() => setShowForm(false)} className="btn-secondary py-2 text-xs">Cancel</button><button onClick={handleSave} className="btn-primary py-2 text-xs">{editingEntry ? 'Update' : 'Save'}</button></div>}>
-        {/* Phone number + compliance */}
-        <div className="bg-surface-alt rounded-xl p-3 mb-4 border border-border-light">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="text-xs font-medium text-text-secondary mb-1 block">Phone Number</label>
-              <select value={calledNumber} onChange={e => {
-                setCalledNumber(e.target.value);
-                const opt = phoneOptions.find(o => o.value === e.target.value);
-                if (opt) setContactPerson(opt.person);
-              }} className="input-field py-2 text-xs">
-                <option value="">Select number...</option>
-                {phoneOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                <option value="other">Other number...</option>
-              </select>
-              {calledNumber === 'other' && (
-                <input type="tel" className="input-field py-2 text-xs mt-1.5" placeholder="Enter phone number..." value="" onChange={e => setCalledNumber(e.target.value)} />
-              )}
+        {/* Contact selection */}
+        <div className="bg-surface-alt rounded-xl p-3 mb-4 border border-border-light space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-text-primary mb-1.5 block">Contact</label>
+            <select className="input-field py-2 text-xs" onChange={e => handleSelectContact(e.target.value)} value={showNewContact ? '__new__' : contacts.findIndex(c => c.name === contactPerson)}>
+              <option value="">Select contact...</option>
+              {contacts.map((c, i) => (
+                <option key={i} value={i}>{c.name} ({c.role}){c.phone ? ` - ${c.phone}` : ''}</option>
+              ))}
+              <option value="__new__">+ Add New Contact</option>
+            </select>
+          </div>
+
+          {showNewContact && (
+            <div className="bg-white rounded-lg p-3 border border-primary-200 space-y-2">
+              <p className="text-[11px] font-semibold text-primary-700">New Contact</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input type="text" className="input-field py-2 text-xs" placeholder="Name" value={newContactName} onChange={e => setNewContactName(e.target.value)} />
+                <input type="tel" className="input-field py-2 text-xs" placeholder="Phone number" value={newContactPhone} onChange={e => setNewContactPhone(e.target.value)} />
+                <select className="input-field py-2 text-xs" value={newContactRole} onChange={e => setNewContactRole(e.target.value)}>
+                  <option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option><option>Case Manager</option><option>Other</option>
+                </select>
+              </div>
+              <button onClick={handleSaveNewContact} disabled={!newContactName.trim()} className={`btn-primary py-1.5 text-xs ${!newContactName.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}>Save Contact</button>
             </div>
-            <div className="flex flex-col justify-end gap-2">
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <input type="checkbox" checked={hipaaVerified} onChange={e => setHipaaVerified(e.target.checked)} className="w-4 h-4 accent-primary-600 rounded" />
-                <span className="text-xs font-medium text-text-primary">HIPAA Identity Verified</span>
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <input type="checkbox" checked={phoneConsent} onChange={e => setPhoneConsent(e.target.checked)} className="w-4 h-4 accent-primary-600 rounded" />
-                <span className="text-xs font-medium text-text-primary">Verbal Phone Consent</span>
-              </label>
+          )}
+
+          {!showNewContact && contactPerson && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-text-muted mb-0.5 block">Name</label>
+                <p className="text-xs font-medium text-text-primary">{contactPerson}</p>
+              </div>
+              <div>
+                <label className="text-[10px] text-text-muted mb-0.5 block">Phone</label>
+                <p className="text-xs font-medium text-text-primary">{calledNumber || 'N/A'}</p>
+              </div>
             </div>
+          )}
+
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={hipaaVerified} onChange={e => setHipaaVerified(e.target.checked)} className="w-4 h-4 accent-primary-600 rounded" />
+              <span className="text-xs font-medium text-text-primary">HIPAA Verified</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={phoneConsent} onChange={e => setPhoneConsent(e.target.checked)} className="w-4 h-4 accent-primary-600 rounded" />
+              <span className="text-xs font-medium text-text-primary">Phone Consent</span>
+            </label>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        {/* Direction, Method, Role */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Direction</label><select value={direction} onChange={e => setDirection(e.target.value)} className="input-field py-2 text-xs"><option>Outbound</option><option>Inbound</option></select></div>
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Method</label><select value={method} onChange={e => setMethod(e.target.value)} className="input-field py-2 text-xs"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option><option>Portal</option></select></div>
-          <div>
-            <label className="text-xs font-medium text-text-secondary mb-1 block">Contact Person</label>
-            <select className="input-field py-2 text-xs" value={
-              [`${patient.firstName} ${patient.lastName}`, patient.emergencyContact?.name, patient.pcp, patient.caseInfo?.assignedCM].includes(contactPerson) ? contactPerson : '__custom__'
-            } onChange={e => {
-              const val = e.target.value;
-              if (val === '__custom__') { setContactPerson(''); return; }
-              setContactPerson(val);
-              if (val === `${patient.firstName} ${patient.lastName}`) setContactRole('Patient');
-              else if (val === patient.emergencyContact?.name) setContactRole('Family/Caregiver');
-              else if (val === patient.pcp) setContactRole('PCP');
-              else if (val === patient.caseInfo?.assignedCM) setContactRole('Case Manager');
-            }}>
-              <option value="">Select...</option>
-              <option value={`${patient.firstName} ${patient.lastName}`}>{patient.firstName} {patient.lastName} (Patient) - {patient.phone}</option>
-              {patient.emergencyContact?.name && <option value={patient.emergencyContact.name}>{patient.emergencyContact.name} ({patient.emergencyContact.relation}) - {patient.emergencyContact.phone}</option>}
-              <option value={patient.pcp}>{patient.pcp} (PCP)</option>
-              {patient.caseInfo?.assignedCM && <option value={patient.caseInfo.assignedCM}>{patient.caseInfo.assignedCM} (CM)</option>}
-              <option value="__custom__">Other (type name)</option>
-            </select>
-            {!['', `${patient.firstName} ${patient.lastName}`, patient.emergencyContact?.name, patient.pcp, patient.caseInfo?.assignedCM].includes(contactPerson) && (
-              <input type="text" className="input-field py-2 text-xs mt-1.5" placeholder="Enter contact name..." value={contactPerson} onChange={e => setContactPerson(e.target.value)} />
-            )}
-          </div>
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select value={contactRole} onChange={e => setContactRole(e.target.value)} className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option><option>Case Manager</option></select></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select value={contactRole} onChange={e => setContactRole(e.target.value)} className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option><option>Case Manager</option><option>Other</option></select></div>
         </div>
         <div className="space-y-3 mb-4">
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Subject</label><input type="text" className="input-field py-2 text-xs" placeholder="Brief subject" value={subject} onChange={e => setSubject(e.target.value)} /></div>
