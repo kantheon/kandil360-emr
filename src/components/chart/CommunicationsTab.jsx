@@ -166,8 +166,31 @@ export default function CommunicationsTab({ patient }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Direction</label><select value={direction} onChange={e => setDirection(e.target.value)} className="input-field py-2 text-xs"><option>Outbound</option><option>Inbound</option></select></div>
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Method</label><select value={method} onChange={e => setMethod(e.target.value)} className="input-field py-2 text-xs"><option>Phone</option><option>Fax</option><option>Email</option><option>In-Person</option><option>Portal</option></select></div>
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Contact</label><input type="text" className="input-field py-2 text-xs" placeholder="Name" value={contactPerson} onChange={e => setContactPerson(e.target.value)} /></div>
-          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select value={contactRole} onChange={e => setContactRole(e.target.value)} className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option></select></div>
+          <div>
+            <label className="text-xs font-medium text-text-secondary mb-1 block">Contact Person</label>
+            <select className="input-field py-2 text-xs" value={
+              [`${patient.firstName} ${patient.lastName}`, patient.emergencyContact?.name, patient.pcp, patient.caseInfo?.assignedCM].includes(contactPerson) ? contactPerson : '__custom__'
+            } onChange={e => {
+              const val = e.target.value;
+              if (val === '__custom__') { setContactPerson(''); return; }
+              setContactPerson(val);
+              if (val === `${patient.firstName} ${patient.lastName}`) setContactRole('Patient');
+              else if (val === patient.emergencyContact?.name) setContactRole('Family/Caregiver');
+              else if (val === patient.pcp) setContactRole('PCP');
+              else if (val === patient.caseInfo?.assignedCM) setContactRole('Case Manager');
+            }}>
+              <option value="">Select...</option>
+              <option value={`${patient.firstName} ${patient.lastName}`}>{patient.firstName} {patient.lastName} (Patient) - {patient.phone}</option>
+              {patient.emergencyContact?.name && <option value={patient.emergencyContact.name}>{patient.emergencyContact.name} ({patient.emergencyContact.relation}) - {patient.emergencyContact.phone}</option>}
+              <option value={patient.pcp}>{patient.pcp} (PCP)</option>
+              {patient.caseInfo?.assignedCM && <option value={patient.caseInfo.assignedCM}>{patient.caseInfo.assignedCM} (CM)</option>}
+              <option value="__custom__">Other (type name)</option>
+            </select>
+            {!['', `${patient.firstName} ${patient.lastName}`, patient.emergencyContact?.name, patient.pcp, patient.caseInfo?.assignedCM].includes(contactPerson) && (
+              <input type="text" className="input-field py-2 text-xs mt-1.5" placeholder="Enter contact name..." value={contactPerson} onChange={e => setContactPerson(e.target.value)} />
+            )}
+          </div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Role</label><select value={contactRole} onChange={e => setContactRole(e.target.value)} className="input-field py-2 text-xs"><option>Patient</option><option>Family/Caregiver</option><option>PCP</option><option>Specialist</option><option>Insurance</option><option>Facility</option><option>Home Health</option><option>Pharmacy</option><option>Case Manager</option></select></div>
         </div>
         <div className="space-y-3 mb-4">
           <div><label className="text-xs font-medium text-text-secondary mb-1 block">Subject</label><input type="text" className="input-field py-2 text-xs" placeholder="Brief subject" value={subject} onChange={e => setSubject(e.target.value)} /></div>
