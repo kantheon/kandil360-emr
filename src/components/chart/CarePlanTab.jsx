@@ -1,58 +1,37 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
-  FlagIcon, CheckCircleIcon, ClockIcon,
-  ArrowPathIcon, PlusIcon, TrashIcon, ChevronDownIcon, ChevronUpIcon,
-  CalendarIcon, ExclamationCircleIcon, XCircleIcon,
+  FlagIcon, CheckCircleIcon, ClockIcon, PlusIcon, TrashIcon,
+  ChevronDownIcon, ChevronUpIcon, CalendarIcon, XCircleIcon,
+  DocumentTextIcon, PencilSquareIcon, ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import Modal from '../Modal';
 import ConfirmDialog from '../ConfirmDialog';
+import SearchableDropdown from '../SearchableDropdown';
 import { carePlanLibrary } from '../../data/carePlanLibrary';
 import { useData } from '../../contexts/DataContext';
 import { getPatientEntries } from '../../data/localStore';
 
 /* ── Constants ──────────────────────────────────────────────────────── */
 
-const GOAL_STATUSES = ['Not Started', 'Initiated', 'In Progress', 'On Track', 'Met', 'Not Met', 'Deferred'];
-const IV_STATUSES = ['Not Started', 'In Progress', 'Completed', 'Discontinued'];
+const INTERVENTION_STATUSES = [
+  'Initiated', 'In Progress', 'Completed', 'Partially Met', 'Not Met', 'Deferred',
+];
 
-const GOAL_STATUS_STYLE = {
-  'Met':         { bg: 'bg-accent-100', text: 'text-accent-700', border: 'border-accent-200', icon: CheckCircleIcon, iconClr: 'text-accent-500' },
-  'On Track':    { bg: 'bg-primary-100', text: 'text-primary-700', border: 'border-primary-200', icon: ArrowPathIcon, iconClr: 'text-primary-500' },
-  'In Progress': { bg: 'bg-warn-100', text: 'text-[#92400e]', border: 'border-warn-200', icon: ClockIcon, iconClr: 'text-warn-500' },
-  'Initiated':   { bg: 'bg-warn-50', text: 'text-[#92400e]', border: 'border-warn-100', icon: ClockIcon, iconClr: 'text-warn-400' },
-  'Not Met':     { bg: 'bg-danger-50', text: 'text-danger-600', border: 'border-danger-200', icon: XCircleIcon, iconClr: 'text-danger-500' },
-  'Deferred':    { bg: 'bg-surface-alt', text: 'text-text-muted', border: 'border-border', icon: ClockIcon, iconClr: 'text-text-muted' },
-  'Not Started': { bg: 'bg-surface-alt', text: 'text-text-secondary', border: 'border-border', icon: ClockIcon, iconClr: 'text-text-muted' },
+const GOAL_STATUSES = [
+  'Initiated', 'In Progress', 'Completed', 'Partially Met', 'Not Met', 'Deferred',
+];
+
+const STATUS_STYLE = {
+  'Initiated':    { bg: 'bg-slate-50',   text: 'text-slate-600',    border: 'border-slate-200',  icon: ClockIcon,       iconClr: 'text-slate-400', dot: 'bg-slate-400'  },
+  'In Progress':  { bg: 'bg-warn-50',    text: 'text-[#92400e]',    border: 'border-warn-200',   icon: ClockIcon,       iconClr: 'text-warn-500',  dot: 'bg-warn-400'   },
+  'Completed':    { bg: 'bg-accent-50',  text: 'text-accent-700',   border: 'border-accent-200', icon: CheckCircleIcon, iconClr: 'text-accent-500',dot: 'bg-accent-500' },
+  'Partially Met':{ bg: 'bg-primary-50', text: 'text-primary-700',  border: 'border-primary-200',icon: ClockIcon,       iconClr: 'text-primary-500',dot:'bg-primary-400'},
+  'Not Met':      { bg: 'bg-danger-50',  text: 'text-danger-600',   border: 'border-danger-200', icon: XCircleIcon,     iconClr: 'text-danger-500',dot: 'bg-danger-400' },
+  'Deferred':     { bg: 'bg-surface-alt',text: 'text-text-muted',   border: 'border-border',     icon: ClockIcon,       iconClr: 'text-text-muted',dot: 'bg-gray-300'   },
 };
 
-const IV_STATUS_STYLE = {
-  'Not Started':   { bg: 'bg-surface-alt', dot: 'bg-gray-300' },
-  'In Progress':   { bg: 'bg-warn-50', dot: 'bg-warn-400' },
-  'Completed':     { bg: 'bg-accent-50', dot: 'bg-accent-500' },
-  'Discontinued':  { bg: 'bg-danger-50', dot: 'bg-danger-400' },
-};
-
-/* ── Helpers ─────────────────────────────────────────────────────────── */
-
-function goalStyle(status) {
-  return GOAL_STATUS_STYLE[status] || GOAL_STATUS_STYLE['Not Started'];
-}
-
-function ivStyle(status) {
-  return IV_STATUS_STYLE[status] || IV_STATUS_STYLE['Not Started'];
-}
-
-/** Read saved intervention statuses for a goal from localStorage */
-function readIvStatuses(patientId, goalId) {
-  try {
-    const raw = localStorage.getItem(`k360_iv_${patientId}_${goalId}`);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-}
-
-/** Write intervention statuses for a goal to localStorage */
-function writeIvStatuses(patientId, goalId, statuses) {
-  localStorage.setItem(`k360_iv_${patientId}_${goalId}`, JSON.stringify(statuses));
+function getStyle(status) {
+  return STATUS_STYLE[status] || STATUS_STYLE['Initiated'];
 }
 
 function formatNow() {
@@ -66,18 +45,31 @@ function formatNow() {
 /* ── Main Component ──────────────────────────────────────────────────── */
 
 export default function CarePlanTab({ patient }) {
-  const { addEntry, updateEntry, deleteEntry, isEditable } = useData();
+  const { addEntry, updateEntry, deleteEntry, isEditable, version } = useData();
 
-  // Expand / collapse
   const [expandedGoals, setExpandedGoals] = useState(new Set());
-
-  // Add Goal modal
   const [showAddModal, setShowAddModal] = useState(false);
-
-  // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const allGoals = patient.carePlan.goals;
+
+  // Fetch all progress entries once, grouped by goalId
+  const progressByGoal = useMemo(() => {
+    const all = getPatientEntries(patient.id, 'carePlanProgress');
+    const map = {};
+    all.forEach(e => {
+      if (!map[e.goalId]) map[e.goalId] = [];
+      map[e.goalId].push(e);
+    });
+    // Sort each group newest-first
+    Object.values(map).forEach(arr => arr.sort((a, b) => {
+      const da = a.createdAt || '';
+      const db = b.createdAt || '';
+      return db.localeCompare(da);
+    }));
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patient.id, version]);
 
   const toggleExpand = (id) => setExpandedGoals(prev => {
     const next = new Set(prev);
@@ -92,15 +84,21 @@ export default function CarePlanTab({ patient }) {
     }
   };
 
-  // Summary counts
-  const met = allGoals.filter(g => g.status === 'Met').length;
-  const active = allGoals.filter(g => ['In Progress', 'On Track', 'Initiated'].includes(g.status)).length;
-  const notStarted = allGoals.filter(g => g.status === 'Not Started').length;
+  // Summary counts based on latest documentation or goal default
+  const getGoalCurrentStatus = (goal) => {
+    const entries = progressByGoal[goal.id];
+    if (entries && entries.length > 0) return entries[0].goalStatus || 'Initiated';
+    return goal.status || 'Initiated';
+  };
+
+  const completed = allGoals.filter(g => getGoalCurrentStatus(g) === 'Completed').length;
+  const active = allGoals.filter(g => ['In Progress', 'Partially Met'].includes(getGoalCurrentStatus(g))).length;
+  const initiated = allGoals.filter(g => getGoalCurrentStatus(g) === 'Initiated').length;
 
   return (
     <div className="space-y-5 animate-fade-in">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-text-primary">Care Plan</h2>
@@ -114,34 +112,34 @@ export default function CarePlanTab({ patient }) {
         </button>
       </div>
 
-      {/* ── Summary Cards ── */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="bg-accent-50 rounded-2xl p-2.5 sm:p-3 text-center border border-accent-100">
-          <p className="text-lg sm:text-xl font-bold text-accent-600">{met}</p>
-          <p className="text-[10px] sm:text-[11px] font-medium text-accent-700">Met</p>
+          <p className="text-lg sm:text-xl font-bold text-accent-600">{completed}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-accent-700">Completed</p>
         </div>
         <div className="bg-primary-50 rounded-2xl p-2.5 sm:p-3 text-center border border-primary-100">
           <p className="text-lg sm:text-xl font-bold text-primary-600">{active}</p>
           <p className="text-[10px] sm:text-[11px] font-medium text-primary-700">Active</p>
         </div>
         <div className="bg-surface-alt rounded-2xl p-2.5 sm:p-3 text-center border border-border-light">
-          <p className="text-lg sm:text-xl font-bold text-text-secondary">{notStarted}</p>
-          <p className="text-[10px] sm:text-[11px] font-medium text-text-muted">Not Started</p>
+          <p className="text-lg sm:text-xl font-bold text-text-secondary">{initiated}</p>
+          <p className="text-[10px] sm:text-[11px] font-medium text-text-muted">Initiated</p>
         </div>
       </div>
 
-      {/* ── Goals List ── */}
+      {/* Goals List */}
       <div className="space-y-2">
         {allGoals.map(goal => (
           <GoalCard
             key={goal.id}
             goal={goal}
             patient={patient}
+            entries={progressByGoal[goal.id] || []}
             isOpen={expandedGoals.has(goal.id)}
             onToggle={() => toggleExpand(goal.id)}
             onDelete={() => setDeleteTarget(goal)}
             addEntry={addEntry}
-            updateEntry={updateEntry}
             isEditable={isEditable}
           />
         ))}
@@ -156,7 +154,7 @@ export default function CarePlanTab({ patient }) {
         )}
       </div>
 
-      {/* ── Barriers Section ── */}
+      {/* Barriers Section */}
       {patient.carePlan.barriers.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
@@ -173,7 +171,7 @@ export default function CarePlanTab({ patient }) {
         </div>
       )}
 
-      {/* ── Delete Confirm ── */}
+      {/* Delete Confirm */}
       <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
@@ -182,7 +180,7 @@ export default function CarePlanTab({ patient }) {
         message="Are you sure you want to delete this care plan goal? This action cannot be undone."
       />
 
-      {/* ── Add Goal Modal ── */}
+      {/* Add Goal Modal */}
       <AddGoalModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -194,179 +192,57 @@ export default function CarePlanTab({ patient }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   GoalCard - The main inline editing experience.
-   Everything happens here: status, interventions, save entry, history.
+   GoalCard
+   Shows: header -> current intervention statuses -> new doc button -> history
    ══════════════════════════════════════════════════════════════════════ */
 
-function GoalCard({ goal, patient, isOpen, onToggle, onDelete, addEntry, updateEntry, isEditable }) {
-  const style = goalStyle(goal.status);
-  const StatusIcon = style.icon;
-  const editable = isEditable(goal.id);
+function GoalCard({ goal, patient, entries, isOpen, onToggle, onDelete, addEntry, isEditable }) {
   const interventions = goal.interventions || [];
+  const editable = isEditable(goal.id);
 
-  // Draft state for this card (only active when expanded)
-  const [draftGoalStatus, setDraftGoalStatus] = useState(goal.status || 'Not Started');
-  const [draftIvStatuses, setDraftIvStatuses] = useState(() => readIvStatuses(patient.id, goal.id));
-  const [newIvText, setNewIvText] = useState('');
-  const [pendingNewIvs, setPendingNewIvs] = useState([]);
-  const [progressNote, setProgressNote] = useState('');
+  // Derive current statuses from the most recent documentation entry
+  const latestEntry = entries.length > 0 ? entries[0] : null;
+  const currentGoalStatus = latestEntry?.goalStatus || 'Initiated';
+  const currentIvStatuses = useMemo(() => {
+    if (!latestEntry?.interventionStatuses) {
+      return interventions.map(iv => ({ intervention: iv, status: 'Initiated' }));
+    }
+    // Map interventions to their status from the latest entry; default to 'Initiated' if missing
+    return interventions.map(iv => {
+      const found = latestEntry.interventionStatuses.find(s => s.intervention === iv);
+      return { intervention: iv, status: found?.status || 'Initiated' };
+    });
+  }, [latestEntry, interventions]);
+
+  const style = getStyle(currentGoalStatus);
+  const StatusIcon = style.icon;
+
+  // Documentation form state
+  const [showDocForm, setShowDocForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // Reset drafts when card opens
-  const handleToggle = () => {
-    if (!isOpen) {
-      // Opening - reset draft to current saved state
-      setDraftGoalStatus(goal.status || 'Not Started');
-      setDraftIvStatuses(readIvStatuses(patient.id, goal.id));
-      setNewIvText('');
-      setPendingNewIvs([]);
-      setProgressNote('');
-      setShowHistory(false);
-      setSaving(false);
-    }
-    onToggle();
-  };
-
-  const updateIvStatus = (index, newStatus) => {
-    setDraftIvStatuses(prev => ({ ...prev, [index]: newStatus }));
-  };
-
-  const addNewIntervention = () => {
-    const text = newIvText.trim();
-    if (!text) return;
-    setPendingNewIvs(prev => [...prev, text]);
-    setNewIvText('');
-  };
-
-  const removePendingIv = (index) => {
-    setPendingNewIvs(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Detect if anything changed from the saved state
-  const savedIvStatuses = readIvStatuses(patient.id, goal.id);
-  const hasIvChanges = interventions.some((_, i) => {
-    const saved = savedIvStatuses[i] || 'Not Started';
-    const draft = draftIvStatuses[i] || 'Not Started';
-    return saved !== draft;
-  });
-  const hasStatusChange = draftGoalStatus !== (goal.status || 'Not Started');
-  const hasNewInterventions = pendingNewIvs.length > 0;
-  const hasNote = progressNote.trim().length > 0;
-  const hasDirtyState = hasIvChanges || hasStatusChange || hasNewInterventions || hasNote;
-
-  // Save Entry = snapshot current state as a progress entry
-  const handleSaveEntry = () => {
-    setSaving(true);
-
-    // 1. Build change log for interventions
-    const changes = [];
-    interventions.forEach((iv, i) => {
-      const oldStatus = savedIvStatuses[i] || 'Not Started';
-      const newStatus = draftIvStatuses[i] || 'Not Started';
-      if (newStatus !== oldStatus) {
-        changes.push({ index: i, intervention: iv, from: oldStatus, to: newStatus });
-      }
-    });
-
-    // 2. Build note text
-    const parts = [];
-    if (hasStatusChange) parts.push(`Goal status: ${goal.status || 'Not Started'} \u2192 ${draftGoalStatus}`);
-    if (changes.length > 0) {
-      changes.forEach(c => parts.push(`${c.intervention}: ${c.from} \u2192 ${c.to}`));
-    }
-    if (hasNewInterventions) {
-      parts.push(`Added ${pendingNewIvs.length} intervention${pendingNewIvs.length > 1 ? 's' : ''}: ${pendingNewIvs.join('; ')}`);
-    }
-    if (hasNote) parts.push(progressNote.trim());
-    const fullNote = parts.join('\n') || 'Reviewed - no changes';
-
-    // 3. Save intervention statuses to localStorage
-    // Include statuses for new interventions too (they start at "Not Started")
-    const mergedIvStatuses = { ...savedIvStatuses, ...draftIvStatuses };
-    writeIvStatuses(patient.id, goal.id, mergedIvStatuses);
-
-    // 4. Create progress entry
-    const { date, time } = formatNow();
-    addEntry(patient.id, 'carePlanProgress', {
-      goalId: goal.id,
-      goalDescription: goal.description,
-      healthConcern: goal.healthConcern || '',
-      status: draftGoalStatus,
-      note: fullNote,
-      interventionChanges: changes,
-      allStatuses: mergedIvStatuses,
-      date,
-      time,
-    });
-
-    // 5. Update goal status if changed
-    if (hasStatusChange) {
-      if (editable) {
-        updateEntry(patient.id, 'carePlanGoals', goal.id, { status: draftGoalStatus });
-      } else {
-        addEntry(patient.id, 'carePlanGoals', {
-          healthConcern: goal.healthConcern || '',
-          description: goal.description,
-          status: draftGoalStatus,
-          targetDate: goal.targetDate || '',
-          interventions: [...interventions, ...pendingNewIvs],
-          barriers: goal.barriers || '',
-        });
-      }
-    }
-
-    // 6. If new interventions were added, update the goal record
-    if (hasNewInterventions && !hasStatusChange) {
-      const updatedIvs = [...interventions, ...pendingNewIvs];
-      if (editable) {
-        updateEntry(patient.id, 'carePlanGoals', goal.id, { interventions: updatedIvs });
-      } else {
-        addEntry(patient.id, 'carePlanGoals', {
-          healthConcern: goal.healthConcern || '',
-          description: goal.description,
-          status: draftGoalStatus,
-          targetDate: goal.targetDate || '',
-          interventions: updatedIvs,
-          barriers: goal.barriers || '',
-        });
-      }
-    }
-
-    // 7. Reset drafts
-    setDraftIvStatuses(mergedIvStatuses);
-    setPendingNewIvs([]);
-    setProgressNote('');
-    setSaving(false);
-  };
-
-  // Progress history
-  const progressEntries = useMemo(() => {
-    const all = getPatientEntries(patient.id, 'carePlanProgress');
-    return all.filter(e => e.goalId === goal.id).reverse();
-  }, [patient.id, goal.id, saving]);
 
   return (
     <div className="card p-0 overflow-hidden">
-      {/* ── Collapsed Header ── */}
-      <button onClick={handleToggle} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-alt transition-colors cursor-pointer text-left">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${goal.status === 'Met' ? 'bg-accent-100' : 'bg-primary-50'}`}>
+      {/* Collapsed Header */}
+      <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-alt transition-colors cursor-pointer text-left">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${currentGoalStatus === 'Completed' ? 'bg-accent-100' : 'bg-primary-50'}`}>
           <StatusIcon className={`w-4 h-4 ${style.iconClr}`} />
         </div>
         <div className="flex-1 min-w-0">
           {goal.healthConcern && (
             <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider">{goal.healthConcern}</p>
           )}
-          <p className={`text-sm font-medium leading-snug ${goal.status === 'Met' ? 'text-text-muted line-through' : 'text-text-primary'}`}>
+          <p className={`text-sm font-medium leading-snug ${currentGoalStatus === 'Completed' ? 'text-text-muted line-through' : 'text-text-primary'}`}>
             {goal.description}
           </p>
           <p className="text-[11px] text-text-muted mt-0.5">
             Target: {goal.targetDate || 'Not set'}
             {interventions.length > 0 && ` \u00B7 ${interventions.length} intervention${interventions.length !== 1 ? 's' : ''}`}
+            {entries.length > 0 && ` \u00B7 ${entries.length} doc${entries.length !== 1 ? 's' : ''}`}
           </p>
         </div>
         <span className={`badge border text-[10px] shrink-0 ${style.bg} ${style.text} ${style.border}`}>
-          {goal.status || 'Not Started'}
+          {currentGoalStatus}
         </span>
         {editable && (
           <span
@@ -382,138 +258,76 @@ function GoalCard({ goal, patient, isOpen, onToggle, onDelete, addEntry, updateE
         }
       </button>
 
-      {/* ── Expanded Inline Panel ── */}
+      {/* Expanded Panel */}
       {isOpen && (
         <div className="px-4 pb-4 border-t border-border-light pt-3 animate-fade-in space-y-4">
 
-          {/* 1. Goal Status */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-            <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider whitespace-nowrap">Goal Status</label>
-            <select
-              className="input-field py-1.5 text-xs w-full sm:w-auto sm:min-w-[140px]"
-              value={draftGoalStatus}
-              onChange={e => setDraftGoalStatus(e.target.value)}
-            >
-              {GOAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+          {/* Goal Info Bar */}
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="text-text-muted">Health Concern:</span>
+            <span className="font-medium text-text-primary">{goal.healthConcern || 'Not specified'}</span>
+            <span className="text-text-muted ml-2">Status:</span>
+            <span className={`badge border text-[10px] ${style.bg} ${style.text} ${style.border}`}>{currentGoalStatus}</span>
+            {goal.targetDate && (
+              <>
+                <span className="text-text-muted ml-2">Target:</span>
+                <span className="font-medium text-text-primary">{goal.targetDate}</span>
+              </>
+            )}
           </div>
 
-          {/* 2. Interventions */}
+          {/* Current Intervention Status Table */}
           <div>
             <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
-              Interventions
+              Current Intervention Status
             </p>
-
             {interventions.length > 0 ? (
-              <div className="space-y-1.5">
-                {interventions.map((iv, i) => {
-                  const status = draftIvStatuses[i] || 'Not Started';
-                  const st = ivStyle(status);
+              <div className="rounded-xl border border-border-light overflow-hidden">
+                {currentIvStatuses.map((item, i) => {
+                  const ivSt = getStyle(item.status);
                   return (
-                    <div key={i} className={`flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg p-2 text-xs transition-all ${st.bg}`}>
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${st.dot}`} />
-                        <span className={`flex-1 ${
-                          status === 'Completed' ? 'line-through text-text-muted'
-                          : status === 'Discontinued' ? 'line-through text-danger-300'
-                          : 'text-text-secondary'
-                        }`}>
-                          {iv}
-                        </span>
-                      </div>
-                      <select
-                        value={status}
-                        onChange={e => updateIvStatus(i, e.target.value)}
-                        className="input-field py-1 px-2 text-[10px] font-semibold w-full sm:w-auto sm:min-w-[110px] shrink-0"
-                      >
-                        {IV_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                    <div
+                      key={i}
+                      className={`flex items-center gap-3 px-3 py-2.5 text-xs ${i > 0 ? 'border-t border-border-light' : ''}`}
+                    >
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${ivSt.dot}`} />
+                      <span className={`flex-1 min-w-0 ${item.status === 'Completed' ? 'line-through text-text-muted' : 'text-text-secondary'}`}>
+                        {item.intervention}
+                      </span>
+                      <span className={`badge border text-[9px] shrink-0 ${ivSt.bg} ${ivSt.text} ${ivSt.border}`}>
+                        {item.status}
+                        {item.status === 'Completed' && ' \u2713'}
+                      </span>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-xs text-text-muted mb-1">No interventions documented yet.</p>
+              <p className="text-xs text-text-muted">No interventions documented yet.</p>
             )}
-
-            {/* Pending new interventions */}
-            {pendingNewIvs.length > 0 && (
-              <div className="space-y-1.5 mt-1.5">
-                {pendingNewIvs.map((iv, i) => (
-                  <div key={`new-${i}`} className="flex items-center gap-2 rounded-lg p-2 text-xs bg-primary-50 border border-primary-100">
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-primary-400" />
-                    <span className="flex-1 text-primary-800">{iv}</span>
-                    <span className="text-[10px] font-medium text-primary-500">New</span>
-                    <button
-                      onClick={() => removePendingIv(i)}
-                      className="p-0.5 text-text-muted hover:text-danger-500 cursor-pointer"
-                    >
-                      <TrashIcon className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add intervention inline */}
-            <div className="flex flex-col sm:flex-row gap-2 mt-2">
-              <input
-                type="text"
-                className="input-field py-2 sm:py-1.5 text-xs flex-1"
-                placeholder="Add new intervention..."
-                value={newIvText}
-                onChange={e => setNewIvText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNewIntervention(); } }}
-              />
-              <button
-                onClick={addNewIntervention}
-                disabled={!newIvText.trim()}
-                className={`btn-secondary py-2 sm:py-1.5 px-3 text-xs flex items-center justify-center gap-1 w-full sm:w-auto ${!newIvText.trim() ? 'opacity-40 cursor-not-allowed' : ''}`}
-              >
-                <PlusIcon className="w-3.5 h-3.5" /> Add
-              </button>
-            </div>
           </div>
 
-          {/* 3. Progress Note (optional) */}
-          <div>
-            <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1 block">
-              Note (optional)
-            </label>
-            <textarea
-              className="textarea-field text-xs !min-h-[48px]"
-              rows={2}
-              placeholder="Any observations, follow-ups, or notes for this entry..."
-              value={progressNote}
-              onChange={e => setProgressNote(e.target.value)}
-            />
-          </div>
-
-          {/* 4. Save Entry Button */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          {/* New Documentation Button / Form */}
+          {!showDocForm ? (
             <button
-              onClick={handleSaveEntry}
-              disabled={!hasDirtyState}
-              className={`btn-primary py-2.5 sm:py-2 px-5 text-xs flex items-center justify-center gap-1.5 w-full sm:w-auto ${!hasDirtyState ? 'opacity-40 cursor-not-allowed' : ''}`}
+              onClick={() => setShowDocForm(true)}
+              className="btn-primary py-2.5 sm:py-2 px-4 text-xs flex items-center gap-1.5 w-full sm:w-auto"
             >
-              <CheckCircleIcon className="w-4 h-4" /> Save Entry
+              <PencilSquareIcon className="w-4 h-4" /> New Documentation
             </button>
-            {!hasDirtyState && (
-              <span className="text-[10px] text-text-muted">Change a status or add an intervention to save an entry</span>
-            )}
-            {hasDirtyState && (
-              <span className="text-[10px] text-accent-600 font-medium">
-                {[
-                  hasStatusChange && 'status changed',
-                  hasIvChanges && 'intervention updates',
-                  hasNewInterventions && `${pendingNewIvs.length} new`,
-                  hasNote && 'note',
-                ].filter(Boolean).join(' \u00B7 ')}
-              </span>
-            )}
-          </div>
+          ) : (
+            <DocumentationForm
+              goal={goal}
+              patient={patient}
+              interventions={interventions}
+              currentIvStatuses={currentIvStatuses}
+              currentGoalStatus={currentGoalStatus}
+              addEntry={addEntry}
+              onClose={() => setShowDocForm(false)}
+            />
+          )}
 
-          {/* 5. Progress History (collapsible) */}
+          {/* Documentation History */}
           <div className="border-t border-border-light pt-3">
             <button
               onClick={() => setShowHistory(!showHistory)}
@@ -521,33 +335,20 @@ function GoalCard({ goal, patient, isOpen, onToggle, onDelete, addEntry, updateE
             >
               {showHistory ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
               <CalendarIcon className="w-3.5 h-3.5" />
-              Progress History
-              {progressEntries.length > 0 && (
-                <span className="badge badge-info text-[9px] ml-1">{progressEntries.length}</span>
+              Documentation History
+              {entries.length > 0 && (
+                <span className="badge badge-info text-[9px] ml-1">{entries.length}</span>
               )}
             </button>
 
             {showHistory && (
               <div className="mt-2 space-y-2 animate-fade-in">
-                {progressEntries.length === 0 ? (
-                  <p className="text-xs text-text-muted py-2 text-center">No progress entries yet.</p>
+                {entries.length === 0 ? (
+                  <p className="text-xs text-text-muted py-2 text-center">No documentation entries yet.</p>
                 ) : (
-                  progressEntries.map((entry, i) => {
-                    const entryStyle = goalStyle(entry.status);
-                    return (
-                      <div key={entry.id || i} className="bg-surface-alt rounded-lg p-3 border border-border-light">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className={`badge border text-[9px] ${entryStyle.bg} ${entryStyle.text} ${entryStyle.border}`}>
-                            {entry.status}
-                          </span>
-                          <span className="text-[10px] text-text-muted">{entry.date} {entry.time}</span>
-                        </div>
-                        {entry.note && (
-                          <p className="text-xs text-text-secondary whitespace-pre-line">{entry.note}</p>
-                        )}
-                      </div>
-                    );
-                  })
+                  entries.map((entry, i) => (
+                    <HistoryEntry key={entry.id || i} entry={entry} />
+                  ))
                 )}
               </div>
             )}
@@ -559,30 +360,223 @@ function GoalCard({ goal, patient, isOpen, onToggle, onDelete, addEntry, updateE
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   AddGoalModal - Single modal with the library dropdown flow.
-   Health Concern -> Goal -> Select Interventions -> Save.
+   DocumentationForm
+   Inline form: status per intervention + goal status + note
+   ══════════════════════════════════════════════════════════════════════ */
+
+function DocumentationForm({ goal, patient, interventions, currentIvStatuses, currentGoalStatus, addEntry, onClose }) {
+  const [goalStatus, setGoalStatus] = useState(currentGoalStatus);
+  const [ivStatuses, setIvStatuses] = useState(() =>
+    currentIvStatuses.map(item => ({ intervention: item.intervention, status: item.status }))
+  );
+  const [note, setNote] = useState('');
+
+  const updateIvStatus = useCallback((index, newStatus) => {
+    setIvStatuses(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], status: newStatus };
+      return next;
+    });
+  }, []);
+
+  const handleSave = () => {
+    const { date, time } = formatNow();
+    addEntry(patient.id, 'carePlanProgress', {
+      goalId: goal.id,
+      goalDescription: goal.description,
+      healthConcern: goal.healthConcern || '',
+      goalStatus,
+      interventionStatuses: ivStatuses,
+      note: note.trim(),
+      date,
+      time,
+      author: 'Current User',
+    });
+    onClose();
+  };
+
+  return (
+    <div className="bg-primary-50/30 rounded-xl border border-primary-100 p-4 space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+          <PencilSquareIcon className="w-3.5 h-3.5 text-primary-500" />
+          New Documentation Entry
+        </h4>
+        <button
+          onClick={onClose}
+          className="text-[10px] text-text-muted hover:text-text-primary cursor-pointer transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+
+      {/* Overall Goal Status */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+        <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider whitespace-nowrap">
+          Goal Status
+        </label>
+        <select
+          className="input-field py-1.5 text-xs w-full sm:w-auto sm:min-w-[160px]"
+          value={goalStatus}
+          onChange={e => setGoalStatus(e.target.value)}
+        >
+          {GOAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+
+      {/* Intervention Statuses */}
+      {interventions.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Intervention Statuses
+          </p>
+          <div className="space-y-1.5">
+            {ivStatuses.map((item, i) => {
+              const ivSt = getStyle(item.status);
+              return (
+                <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg bg-white p-2.5 border border-border-light">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${ivSt.dot}`} />
+                    <span className="text-xs text-text-secondary flex-1">{item.intervention}</span>
+                  </div>
+                  <select
+                    value={item.status}
+                    onChange={e => updateIvStatus(i, e.target.value)}
+                    className="input-field py-1 px-2 text-[10px] font-semibold w-full sm:w-auto sm:min-w-[130px] shrink-0"
+                  >
+                    {INTERVENTION_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      <div>
+        <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1 block">
+          Documentation Note
+        </label>
+        <textarea
+          className="textarea-field text-xs !min-h-[64px]"
+          rows={3}
+          placeholder="Observations, patient response, follow-up actions..."
+          value={note}
+          onChange={e => setNote(e.target.value)}
+        />
+      </div>
+
+      {/* Save / Cancel */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <button
+          onClick={handleSave}
+          className="btn-primary py-2.5 sm:py-2 px-5 text-xs flex items-center justify-center gap-1.5 w-full sm:w-auto"
+        >
+          <CheckCircleIcon className="w-4 h-4" /> Save Documentation
+        </button>
+        <button
+          onClick={onClose}
+          className="btn-secondary py-2.5 sm:py-2 px-4 text-xs w-full sm:w-auto"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   HistoryEntry
+   A single documentation entry in the history list, collapsible.
+   ══════════════════════════════════════════════════════════════════════ */
+
+function HistoryEntry({ entry }) {
+  const [expanded, setExpanded] = useState(false);
+  const st = getStyle(entry.goalStatus || 'Initiated');
+  const ivList = entry.interventionStatuses || [];
+
+  return (
+    <div className="bg-surface-alt rounded-xl border border-border-light overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left cursor-pointer hover:bg-surface-hover transition-colors"
+      >
+        {expanded
+          ? <ChevronUpIcon className="w-3 h-3 text-text-muted shrink-0" />
+          : <ChevronDownIcon className="w-3 h-3 text-text-muted shrink-0" />
+        }
+        <span className="text-[11px] font-medium text-text-primary">{entry.date} {entry.time}</span>
+        <span className={`badge border text-[9px] ${st.bg} ${st.text} ${st.border}`}>
+          {entry.goalStatus || 'Initiated'}
+        </span>
+        {entry.note && (
+          <span className="text-[10px] text-text-muted truncate flex-1 min-w-0">
+            &mdash; {entry.note.length > 60 ? entry.note.slice(0, 60) + '...' : entry.note}
+          </span>
+        )}
+        {entry.author && (
+          <span className="text-[10px] text-text-muted shrink-0">{entry.author}</span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="px-3 pb-3 border-t border-border-light pt-2.5 animate-fade-in space-y-2.5">
+          {/* Note */}
+          {entry.note && (
+            <div className="bg-white rounded-lg p-2.5 border border-border-light">
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1">Note</p>
+              <p className="text-xs text-text-secondary whitespace-pre-line">{entry.note}</p>
+            </div>
+          )}
+
+          {/* Intervention Statuses at this point */}
+          {ivList.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Interventions</p>
+              <div className="space-y-1">
+                {ivList.map((item, i) => {
+                  const ivSt = getStyle(item.status || 'Initiated');
+                  return (
+                    <div key={i} className="flex items-center gap-2 text-[11px]">
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${ivSt.dot}`} />
+                      <span className="flex-1 text-text-secondary min-w-0 truncate">{item.intervention}</span>
+                      <span className={`text-[10px] font-medium ${ivSt.text}`}>{item.status || 'Initiated'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   AddGoalModal
+   Health Concern -> Goal -> Select Interventions -> Save
    ══════════════════════════════════════════════════════════════════════ */
 
 function AddGoalModal({ open, onClose, patientId, addEntry }) {
   const [concern, setConcern] = useState('');
   const [goalDesc, setGoalDesc] = useState('');
-  const [status, setStatus] = useState('Not Started');
   const [targetDate, setTargetDate] = useState('');
   const [checkedIvs, setCheckedIvs] = useState(new Set());
   const [customIvs, setCustomIvs] = useState(['']);
-  const [barriers, setBarriers] = useState('');
 
+  const healthConcerns = useMemo(() => carePlanLibrary.map(c => c.healthConcern), []);
   const selectedLib = carePlanLibrary.find(c => c.healthConcern === concern);
+  const goalOptions = useMemo(() => selectedLib?.goals.map(g => g.description) || [], [selectedLib]);
   const selectedGoalDef = selectedLib?.goals.find(g => g.description === goalDesc);
 
   const reset = () => {
     setConcern('');
     setGoalDesc('');
-    setStatus('Not Started');
     setTargetDate('');
     setCheckedIvs(new Set());
     setCustomIvs(['']);
-    setBarriers('');
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -596,12 +590,6 @@ function AddGoalModal({ open, onClose, patientId, addEntry }) {
   const handleGoalChange = (val) => {
     setGoalDesc(val);
     setCheckedIvs(new Set());
-    // Auto-set timeframe from library if available
-    const lib = carePlanLibrary.find(c => c.healthConcern === concern);
-    const goalDef = lib?.goals.find(g => g.description === val);
-    if (goalDef?.timeframe && !targetDate) {
-      // timeframe is a text string like "90 days" - don't auto-set date input
-    }
   };
 
   const toggleIv = (iv) => {
@@ -619,14 +607,30 @@ function AddGoalModal({ open, onClose, patientId, addEntry }) {
       ...Array.from(checkedIvs),
       ...customIvs.filter(iv => iv.trim()),
     ];
-    addEntry(patientId, 'carePlanGoals', {
+
+    // Create the goal
+    const goalEntry = addEntry(patientId, 'carePlanGoals', {
       healthConcern: concern,
       description: goalDesc,
-      status,
+      status: 'Initiated',
       targetDate,
       interventions: allIvs,
-      barriers,
     });
+
+    // Create initial documentation entry so there is a baseline snapshot
+    const { date, time } = formatNow();
+    addEntry(patientId, 'carePlanProgress', {
+      goalId: goalEntry.id,
+      goalDescription: goalDesc,
+      healthConcern: concern,
+      goalStatus: 'Initiated',
+      interventionStatuses: allIvs.map(iv => ({ intervention: iv, status: 'Initiated' })),
+      note: 'Initial care plan created.',
+      date,
+      time,
+      author: 'Current User',
+    });
+
     handleClose();
   };
 
@@ -657,21 +661,18 @@ function AddGoalModal({ open, onClose, patientId, addEntry }) {
             <span className="w-4 h-4 bg-danger-100 text-danger-600 rounded text-[9px] font-bold flex items-center justify-center">1</span>
             Health Concern
           </label>
-          <select
-            className="input-field py-1.5 text-xs mb-1.5"
-            value={selectedLib ? concern : ''}
-            onChange={e => handleConcernChange(e.target.value)}
-          >
-            <option value="">Select from library...</option>
-            {carePlanLibrary.map(c => (
-              <option key={c.id} value={c.healthConcern}>{c.healthConcern}</option>
-            ))}
-          </select>
+          <SearchableDropdown
+            options={healthConcerns}
+            value={concern}
+            onChange={handleConcernChange}
+            placeholder="Search health concerns..."
+            small
+          />
           <input
             type="text"
-            className="input-field py-1.5 text-xs"
+            className="input-field py-1.5 text-xs mt-1.5"
             placeholder="Or type a custom concern..."
-            value={concern}
+            value={selectedLib ? '' : concern}
             onChange={e => handleConcernChange(e.target.value)}
           />
         </div>
@@ -682,17 +683,16 @@ function AddGoalModal({ open, onClose, patientId, addEntry }) {
             <span className="w-4 h-4 bg-primary-100 text-primary-700 rounded text-[9px] font-bold flex items-center justify-center">2</span>
             Goal Description
           </label>
-          {selectedLib && (
-            <select
-              className="input-field py-1.5 text-xs mb-1.5"
-              value={goalDesc}
-              onChange={e => handleGoalChange(e.target.value)}
-            >
-              <option value="">Select a goal...</option>
-              {selectedLib.goals.map(g => (
-                <option key={g.id} value={g.description}>{g.description}</option>
-              ))}
-            </select>
+          {selectedLib && goalOptions.length > 0 && (
+            <div className="mb-1.5">
+              <SearchableDropdown
+                options={goalOptions}
+                value={goalDesc}
+                onChange={handleGoalChange}
+                placeholder="Search goals..."
+                small
+              />
+            </div>
           )}
           <textarea
             className="textarea-field text-xs !min-h-[40px]"
@@ -701,22 +701,14 @@ function AddGoalModal({ open, onClose, patientId, addEntry }) {
             value={goalDesc}
             onChange={e => setGoalDesc(e.target.value)}
           />
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <div>
-              <label className="text-[10px] text-text-muted mb-0.5 block">Initial Status</label>
-              <select className="input-field py-1.5 text-xs" value={status} onChange={e => setStatus(e.target.value)}>
-                {GOAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] text-text-muted mb-0.5 block">Target Date</label>
-              <input
-                type="date"
-                className="input-field py-1.5 text-xs"
-                value={targetDate}
-                onChange={e => setTargetDate(e.target.value)}
-              />
-            </div>
+          <div className="mt-2">
+            <label className="text-[10px] text-text-muted mb-0.5 block">Target Date</label>
+            <input
+              type="date"
+              className="input-field py-1.5 text-xs"
+              value={targetDate}
+              onChange={e => setTargetDate(e.target.value)}
+            />
           </div>
         </div>
 
@@ -783,18 +775,6 @@ function AddGoalModal({ open, onClose, patientId, addEntry }) {
               <PlusIcon className="w-3 h-3" /> Add custom intervention
             </button>
           </div>
-        </div>
-
-        {/* Barriers (optional) */}
-        <div>
-          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Barriers (optional)</label>
-          <input
-            type="text"
-            className="input-field py-1.5 text-xs"
-            placeholder="e.g. Transportation, health literacy"
-            value={barriers}
-            onChange={e => setBarriers(e.target.value)}
-          />
         </div>
       </div>
     </Modal>

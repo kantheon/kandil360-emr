@@ -6,12 +6,72 @@ import {
   ClipboardDocumentListIcon,
   UserGroupIcon,
   CalendarIcon,
-  FlagIcon
+  FlagIcon,
+  BellAlertIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 export default function OverviewTab({ patient }) {
+  // Collect all due follow-ups
+  const followUps = [];
+  const today = new Date().toISOString().split('T')[0];
+
+  // From case info
+  if (patient.caseInfo?.nextFollowUp) {
+    followUps.push({ source: 'Case Management', date: patient.caseInfo.nextFollowUp, detail: `Next CM follow-up with ${patient.caseInfo.assignedCM || 'CM'}` });
+  }
+
+  // From communications with follow-up dates
+  (patient.communications || []).forEach(c => {
+    if (c.followUpDate && c.followUpDate >= today) {
+      followUps.push({ source: 'Communication', date: c.followUpDate, detail: `F/U: ${c.subject || 'Communication'} - ${c.contactPerson || ''}` });
+    }
+  });
+
+  // From appointments
+  (patient.appointments || []).forEach(a => {
+    if (a.date && a.date >= today && a.status === 'Scheduled') {
+      followUps.push({ source: 'Appointment', date: a.date, detail: `${a.type} with ${a.provider}` });
+    }
+  });
+
+  followUps.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const overdueFollowUps = followUps.filter(f => f.date < today);
+  const upcomingFollowUps = followUps.filter(f => f.date >= today).slice(0, 5);
+
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Due Follow-ups Alert */}
+      {(overdueFollowUps.length > 0 || upcomingFollowUps.length > 0) && (
+        <div className={`rounded-2xl p-4 border ${overdueFollowUps.length > 0 ? 'bg-danger-50 border-danger-200' : 'bg-primary-50 border-primary-200'}`}>
+          <div className="flex items-center gap-2 mb-3">
+            {overdueFollowUps.length > 0 ? <BellAlertIcon className="w-5 h-5 text-danger-500" /> : <ClockIcon className="w-5 h-5 text-primary-500" />}
+            <h3 className="text-sm font-semibold text-text-primary">Follow-ups Due</h3>
+            {overdueFollowUps.length > 0 && <span className="badge badge-critical text-[10px]">{overdueFollowUps.length} overdue</span>}
+          </div>
+          <div className="space-y-2">
+            {overdueFollowUps.map((f, i) => (
+              <div key={`o-${i}`} className="flex items-center gap-3 bg-white rounded-lg p-2.5 border border-danger-100">
+                <span className="text-[10px] font-bold text-danger-600 bg-danger-100 px-2 py-0.5 rounded-md">{f.date}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-danger-700">{f.detail}</p>
+                  <p className="text-[10px] text-danger-500">{f.source} - OVERDUE</p>
+                </div>
+              </div>
+            ))}
+            {upcomingFollowUps.map((f, i) => (
+              <div key={`u-${i}`} className="flex items-center gap-3 bg-white rounded-lg p-2.5 border border-border-light">
+                <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-2 py-0.5 rounded-md">{f.date}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-text-primary">{f.detail}</p>
+                  <p className="text-[10px] text-text-muted">{f.source}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Top Row - Key Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Case Info */}
