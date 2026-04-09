@@ -431,6 +431,9 @@ function DocumentationModal({ open, onClose, patient, allGoals, goalStatuses, ad
   };
 
   const handleSave = () => {
+    // Close modal FIRST to prevent re-render issues
+    onClose();
+
     const { date, time } = formatNow();
 
     // Build the complete snapshot for ALL existing goals
@@ -467,7 +470,7 @@ function DocumentationModal({ open, onClose, patient, allGoals, goalStatuses, ad
       };
     });
 
-    // Build new-intervention map for existing goals (to update their stored interventions)
+    // Build new-intervention map
     const newInterventionMap = {};
     goalForms.forEach(gf => {
       const newIvTexts = gf.newInterventions
@@ -489,13 +492,11 @@ function DocumentationModal({ open, onClose, patient, allGoals, goalStatuses, ad
       author: 'Current User',
     });
 
-    // Update existing goals that got new interventions added
-    // (We need to add interventions to the actual goal records so they persist)
-    // This is done by re-saving the goal with the updated interventions list
-    // For seed data goals we cannot update them in localStorage, so the documentation
-    // snapshot itself serves as the source of truth for intervention statuses.
-
-    handleClose();
+    // Reset internal state
+    setGoalForms([]);
+    setNewGoals([]);
+    setNote('');
+    setShowAddInline(false);
   };
 
   const handleClose = () => {
