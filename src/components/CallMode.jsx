@@ -866,7 +866,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                 </button>
                 {showAddMenu&&(
                   <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-lg border border-border-light p-1.5 z-10 animate-fade-in">
-                    {[{id:'note',label:'Progress Note',icon:DocumentTextIcon},{id:'comm',label:'Communication',icon:ChatBubbleLeftRightIcon},{id:'assessment',label:'Assessment',icon:ClipboardDocumentCheckIcon},{id:'appointment',label:'Appointment',icon:CalendarDaysIcon},{id:'goal',label:'Care Plan Goal',icon:FlagIcon}].map(t=>(
+                    {[{id:'note',label:'Progress Note',icon:DocumentTextIcon},{id:'comm',label:'Communication',icon:ChatBubbleLeftRightIcon},{id:'assessment',label:'Assessment',icon:ClipboardDocumentCheckIcon},{id:'appointment',label:'Appointment',icon:CalendarDaysIcon}].map(t=>(
                       <button key={t.id} onClick={()=>openModal(t.id)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-primary-50 transition-colors cursor-pointer text-left">
                         <t.icon className="w-4 h-4 text-text-muted" /><span className="text-xs font-medium text-text-primary">{t.label}</span>
                       </button>
