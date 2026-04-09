@@ -17,6 +17,7 @@ import { noteTypes } from '../data/noteTypes';
 import { callOutcomes } from '../data/callOutcomes';
 import SearchableDropdown from './SearchableDropdown';
 import CarePlanTab from './chart/CarePlanTab';
+import OverviewTab from './chart/OverviewTab';
 
 /* ── Provider availability ── */
 // Generate real date slots for next 2 weeks per provider
@@ -388,35 +389,7 @@ function CallModeLeftPanel({ patient, mergedAppointments, mergedGoals, addEntry 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-3">
         {/* OVERVIEW */}
-        {tab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <div className="card p-3">
-              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Diagnoses</p>
-              <div className="space-y-1.5">{patient.diagnoses.map((dx, i) => (
-                <div key={i} className="flex items-start gap-2"><span className="badge badge-info text-[9px] shrink-0 mt-0.5">{dx.code}</span><div><p className="text-xs font-medium text-text-primary">{dx.description}</p><p className="text-[10px] text-text-muted">Since {dx.onsetDate}</p></div></div>
-              ))}</div>
-            </div>
-            <div className="card p-3">
-              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Medications</p>
-              <div className="space-y-1.5">{patient.medications.map((m, i) => (
-                <div key={i} className="flex justify-between text-xs"><div><span className="font-medium text-text-primary">{m.name}</span> <span className="text-text-muted">{m.dose} {m.frequency}</span></div><span className="text-[10px] text-text-muted">{m.prescriber}</span></div>
-              ))}</div>
-            </div>
-            <div className="card p-3">
-              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Insurance</p>
-              <div className="space-y-1 text-xs">
-                {[['Plan', patient.insurance.plan], ['Member ID', patient.insurance.memberId], ['Group', patient.insurance.groupNumber], ['Copay', patient.insurance.copay], ['Status', patient.insurance.status]].map(([l, v]) => (
-                  <div key={l} className="flex justify-between"><span className="text-text-muted">{l}</span><span className={`font-medium ${l === 'Status' ? 'text-accent-600' : 'text-text-primary'}`}>{v}</span></div>
-                ))}
-              </div>
-            </div>
-            <div className="card p-3">
-              <p className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2">Emergency Contact</p>
-              <p className="text-xs font-semibold text-text-primary">{patient.emergencyContact.name}</p>
-              <p className="text-xs text-text-muted">{patient.emergencyContact.relation} &middot; {patient.emergencyContact.phone}</p>
-            </div>
-          </div>
-        )}
+        {tab === 'overview' && <OverviewTab patient={patient} />}
 
         {/* NOTES */}
         {tab === 'notes' && (

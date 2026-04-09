@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   HeartIcon,
   BeakerIcon,
@@ -8,10 +9,20 @@ import {
   CalendarIcon,
   FlagIcon,
   BellAlertIcon,
-  ClockIcon
+  ClockIcon,
+  PencilSquareIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  MapPinIcon,
+  UserIcon
 } from '@heroicons/react/24/outline';
+import Modal from '../Modal';
+import { useData } from '../../contexts/DataContext';
 
 export default function OverviewTab({ patient }) {
+  const { addEntry } = useData();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({});
   // Collect all due follow-ups
   const followUps = [];
   const today = new Date().toISOString().split('T')[0];
@@ -71,6 +82,69 @@ export default function OverviewTab({ patient }) {
           </div>
         </div>
       )}
+
+      {/* Patient Info */}
+      <div className="card p-0 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 bg-surface-alt border-b border-border-light">
+          <div className="flex items-center gap-2">
+            <UserIcon className="w-4 h-4 text-primary-500" />
+            <h3 className="text-sm font-semibold text-text-primary">Patient Information</h3>
+          </div>
+          <button onClick={() => { setEditForm({ phone: patient.phone, email: patient.email || '', address: patient.address, language: patient.language, ecName: patient.emergencyContact.name, ecRelation: patient.emergencyContact.relation, ecPhone: patient.emergencyContact.phone }); setShowEditModal(true); }} className="text-xs text-primary-600 font-medium flex items-center gap-1 cursor-pointer hover:text-primary-700">
+            <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+          </button>
+        </div>
+        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center shrink-0"><PhoneIcon className="w-4 h-4 text-primary-500" /></div>
+            <div><p className="text-[10px] text-text-muted">Phone</p><p className="text-xs font-semibold text-text-primary">{patient.phone}</p></div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center shrink-0"><EnvelopeIcon className="w-4 h-4 text-primary-500" /></div>
+            <div><p className="text-[10px] text-text-muted">Email</p><p className="text-xs font-semibold text-text-primary">{patient.email || 'N/A'}</p></div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center shrink-0"><MapPinIcon className="w-4 h-4 text-primary-500" /></div>
+            <div><p className="text-[10px] text-text-muted">Address</p><p className="text-xs font-semibold text-text-primary">{patient.address}</p></div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-accent-50 flex items-center justify-center shrink-0"><span className="text-[10px] font-bold text-accent-600">Lx</span></div>
+            <div><p className="text-[10px] text-text-muted">Language</p><p className="text-xs font-semibold text-text-primary">{patient.language}</p></div>
+          </div>
+          <div className="flex items-center gap-3 sm:col-span-2">
+            <div className="w-8 h-8 rounded-lg bg-warn-50 flex items-center justify-center shrink-0"><UserGroupIcon className="w-4 h-4 text-warn-500" /></div>
+            <div><p className="text-[10px] text-text-muted">Emergency Contact</p><p className="text-xs font-semibold text-text-primary">{patient.emergencyContact.name} ({patient.emergencyContact.relation}) &middot; {patient.emergencyContact.phone}</p></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Patient Info Modal */}
+      <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Patient Information" footer={
+        <div className="flex justify-end gap-2">
+          <button onClick={() => setShowEditModal(false)} className="btn-secondary py-2 text-xs">Cancel</button>
+          <button onClick={() => {
+            addEntry(patient.id, 'patientUpdates', { ...editForm, date: new Date().toISOString(), author: 'Current User' });
+            setShowEditModal(false);
+          }} className="btn-primary py-2 text-xs">Save Changes</button>
+        </div>
+      }>
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><label className="text-xs font-medium text-text-secondary mb-1 block">Phone</label><input type="tel" className="input-field py-2 text-xs" value={editForm.phone || ''} onChange={e => setEditForm(p => ({...p, phone: e.target.value}))} /></div>
+            <div><label className="text-xs font-medium text-text-secondary mb-1 block">Email</label><input type="email" className="input-field py-2 text-xs" value={editForm.email || ''} onChange={e => setEditForm(p => ({...p, email: e.target.value}))} /></div>
+          </div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Address</label><input type="text" className="input-field py-2 text-xs" value={editForm.address || ''} onChange={e => setEditForm(p => ({...p, address: e.target.value}))} /></div>
+          <div><label className="text-xs font-medium text-text-secondary mb-1 block">Language</label><input type="text" className="input-field py-2 text-xs" value={editForm.language || ''} onChange={e => setEditForm(p => ({...p, language: e.target.value}))} /></div>
+          <div className="border-t border-border-light pt-3 mt-3">
+            <p className="text-xs font-semibold text-text-primary mb-2">Emergency Contact</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div><label className="text-xs font-medium text-text-secondary mb-1 block">Name</label><input type="text" className="input-field py-2 text-xs" value={editForm.ecName || ''} onChange={e => setEditForm(p => ({...p, ecName: e.target.value}))} /></div>
+              <div><label className="text-xs font-medium text-text-secondary mb-1 block">Relation</label><input type="text" className="input-field py-2 text-xs" value={editForm.ecRelation || ''} onChange={e => setEditForm(p => ({...p, ecRelation: e.target.value}))} /></div>
+              <div><label className="text-xs font-medium text-text-secondary mb-1 block">Phone</label><input type="tel" className="input-field py-2 text-xs" value={editForm.ecPhone || ''} onChange={e => setEditForm(p => ({...p, ecPhone: e.target.value}))} /></div>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {/* Top Row - Key Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
