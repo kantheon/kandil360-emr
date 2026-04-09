@@ -432,7 +432,28 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
     const entry = entries.find(e=>e.id===id);
     if(entry) {
       const typeMap = { note:'progressNotes', comm:'communications', assessment:'assessments', appointment:'appointments', goal:'carePlanGoals' };
-      let dataToSave = entry.data;
+      let dataToSave = { ...entry.data };
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+      // Enrich note data with type/date/author
+      if (entry.type === 'note') {
+        const nt = noteTypes.find(t => t.id === dataToSave.noteTypeId);
+        dataToSave.type = dataToSave.noteTypeName || nt?.name || 'Progress Note';
+        dataToSave.typeId = dataToSave.noteTypeId || 'soap';
+        dataToSave.format = nt?.format || 'SOAP';
+        dataToSave.date = today;
+        dataToSave.time = timeNow;
+        dataToSave.author = 'Current User';
+      }
+
+      // Enrich comm data
+      if (entry.type === 'comm') {
+        dataToSave.date = today;
+        dataToSave.time = timeNow;
+        dataToSave.followUpNeeded = !!dataToSave.followUpDate;
+      }
+
       // Enrich assessment data so it is compatible with AssessmentsTab edit flow
       if (entry.type === 'assessment' && dataToSave.templateId) {
         const tpl = assessmentTemplates.find(t => t.id === dataToSave.templateId);
@@ -441,7 +462,6 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
           const total = tpl.questions.reduce((s, q) => s + (answers[q.id] ?? 0), 0);
           const allDone = tpl.questions.every(q => answers[q.id] !== undefined);
           const range = tpl.scoring.method === 'sum' ? tpl.scoring.ranges.find(r => total >= r.min && total <= r.max) : null;
-          const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
           dataToSave = {
             ...dataToSave,
             templateName: tpl.name,
