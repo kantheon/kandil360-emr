@@ -797,7 +797,7 @@ function getEntrySummary(entry) {
 
 /* ── Main ── */
 export default function CallMode({ patient, onClose, minimized, onToggleMinimize }) {
-  const { addEntry: dataAddEntry } = useData();
+  const { addEntry: dataAddEntry, updateEntry: dataUpdateEntry } = useData();
   const [entries,setEntries] = useState([]);
   const [expandedEntries,setExpandedEntries] = useState(new Set());
   const [showAddMenu,setShowAddMenu] = useState(false);
@@ -881,6 +881,23 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
       dataToSave.date = today;
       dataToSave.time = timeNow;
       dataToSave.author = 'Current User';
+      // Persist any new interventions added in the form back to the goal records
+      if (dataToSave.goals) {
+        const existingGoals = patient?.carePlan?.goals || [];
+        dataToSave.goals.forEach(gf => {
+          const goal = existingGoals.find(g => g.id === gf.goalId);
+          if (goal && typeof gf.goalId === 'string' && gf.goalId.startsWith('local-')) {
+            const existingIvTexts = (goal.interventions || []);
+            const docIvTexts = (gf.interventions || []).map(iv => typeof iv === 'string' ? iv : iv.text);
+            const newIvs = docIvTexts.filter(t => t && !existingIvTexts.includes(t));
+            if (newIvs.length > 0) {
+              dataUpdateEntry(patient.id, 'carePlanGoals', gf.goalId, {
+                interventions: [...existingIvTexts, ...newIvs]
+              });
+            }
+          }
+        });
+      }
     }
     if (entry.type === 'assessment' && dataToSave.templateId) {
       const tpl = assessmentTemplates.find(t => t.id === dataToSave.templateId);

@@ -45,7 +45,7 @@ function formatNow() {
 /* ── Main Component ─────────────────────────────────────────────────── */
 
 export default function CarePlanTab({ patient, autoOpenDoc }) {
-  const { addEntry, deleteEntry, isEditable, version } = useData();
+  const { addEntry, updateEntry, deleteEntry, isEditable, version } = useData();
 
   const [showDocModal, setShowDocModal] = useState(false);
 
@@ -99,11 +99,19 @@ export default function CarePlanTab({ patient, autoOpenDoc }) {
     const docEntry = goalStatuses[goal.id];
     const interventions = goal.interventions || [];
     if (docEntry?.interventions?.length > 0) {
-      // Map each intervention to its documented status; fall back to Initiated
-      return interventions.map(iv => {
+      // Map each intervention from the goal record to its documented status
+      const result = interventions.map(iv => {
         const found = docEntry.interventions.find(d => d.text === iv);
         return { text: iv, status: found?.status || 'Initiated' };
       });
+      // Also include any interventions from the doc snapshot not yet in the goal record
+      // (e.g., new interventions added to seed goals that can't be updated in localStorage)
+      docEntry.interventions.forEach(docIv => {
+        if (!interventions.includes(docIv.text)) {
+          result.push({ text: docIv.text, status: docIv.status || 'Initiated' });
+        }
+      });
+      return result;
     }
     return interventions.map(iv => ({ text: iv, status: 'Initiated' }));
   };
@@ -318,6 +326,7 @@ export default function CarePlanTab({ patient, autoOpenDoc }) {
         allGoals={allGoals}
         goalStatuses={goalStatuses}
         addEntry={addEntry}
+        updateEntry={updateEntry}
       />
 
       <AddGoalModal
@@ -335,7 +344,8 @@ export default function CarePlanTab({ patient, autoOpenDoc }) {
    Full comprehensive review of ALL goals and interventions at once.
    ══════════════════════════════════════════════════════════════════════ */
 
-function DocumentationModal({ open, onClose, patient, allGoals, goalStatuses, addEntry }) {
+function DocumentationModal({ open, onClose, patient, allGoals, goalStatuses, addEntry, updateEntry }) {
+  const [showAddInline, setShowAddInline] = useState(false);
   // Build initial form state from current goals + last documented statuses
   const initialGoalForms = useCallback(() => {
     return allGoals.map(goal => {
@@ -487,7 +497,7 @@ function DocumentationModal({ open, onClose, patient, allGoals, goalStatuses, ad
       };
     });
 
-    // Build new-intervention map
+    // Build new-intervention map and update goal records with new interventions
     const newInterventionMap = {};
     goalForms.forEach(gf => {
       const newIvTexts = gf.newInterventions
@@ -495,6 +505,12 @@ function DocumentationModal({ open, onClose, patient, allGoals, goalStatuses, ad
         .map(iv => iv.text.trim());
       if (newIvTexts.length > 0) {
         newInterventionMap[gf.goalId] = newIvTexts;
+        // Persist new interventions to the goal record itself (only local goals can be updated)
+        const goal = allGoals.find(g => g.id === gf.goalId);
+        if (goal && typeof gf.goalId === 'string' && gf.goalId.startsWith('local-')) {
+          const updatedIvs = [...(goal.interventions || []), ...newIvTexts];
+          updateEntry(patient.id, 'carePlanGoals', gf.goalId, { interventions: updatedIvs });
+        }
       }
     });
 
