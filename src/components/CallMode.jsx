@@ -671,6 +671,17 @@ function CarePlanDocForm({ entry, onChange, disabled, patient }) {
     next[gIdx] = { ...next[gIdx], interventions: ivs };
     onChange({ ...entry, goals: next });
   };
+  const removeIv = (gIdx, ivIdx) => {
+    const next = [...goalForms];
+    next[gIdx] = { ...next[gIdx], interventions: next[gIdx].interventions.filter((_, i) => i !== ivIdx) };
+    onChange({ ...entry, goals: next });
+  };
+  const addIv = (gIdx, text) => {
+    if (!text.trim()) return;
+    const next = [...goalForms];
+    next[gIdx] = { ...next[gIdx], interventions: [...next[gIdx].interventions, { text: text.trim(), status: 'Initiated' }] };
+    onChange({ ...entry, goals: next });
+  };
 
   if (disabled) {
     return (
@@ -708,8 +719,19 @@ function CarePlanDocForm({ entry, onChange, disabled, patient }) {
                 <select value={iv.status} onChange={e => updateIvStatus(gIdx, ivIdx, e.target.value)} className="input-field py-1 px-2 text-[10px] font-semibold w-auto min-w-[110px] shrink-0">
                   {INTERVENTION_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
+                <button onClick={() => removeIv(gIdx, ivIdx)} className="p-0.5 rounded hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer shrink-0"><TrashIcon className="w-3 h-3" /></button>
               </div>
             ))}
+            <SearchableDropdown
+              options={(() => {
+                const lib = carePlanLibrary.find(c => c.healthConcern === gf.healthConcern);
+                return lib ? lib.goals.flatMap(g => g.interventions).filter(iv => !gf.interventions.some(existing => existing.text === iv)) : [];
+              })()}
+              value=""
+              onChange={v => addIv(gIdx, v)}
+              placeholder="+ Add intervention..."
+              small
+            />
           </div>
         </div>
       ))}
