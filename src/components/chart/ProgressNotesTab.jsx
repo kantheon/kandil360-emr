@@ -216,8 +216,8 @@ export default function ProgressNotesTab({ patient }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="badge badge-info text-[10px]">{note.type || note.format || 'Note'}</span>
-                    <span className="badge badge-neutral text-[10px]">{note.contactMethod}</span>
                     <span className="text-xs text-text-muted">{note.date} {note.time}</span>
+                    {note.contactMethod && <span className="text-[10px] text-text-muted">via {note.contactMethod}</span>}
                   </div>
                   {!isOpen && preview && <p className="text-[11px] text-text-muted truncate mt-0.5">{preview}...</p>}
                 </div>

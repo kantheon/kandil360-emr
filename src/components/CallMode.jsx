@@ -49,7 +49,7 @@ const goalStatuses = ['Not Started','Initiated','In Progress','On Track','Met','
 
 /* ── Entry name helper ── */
 function getEntryTitle(entry) {
-  if (entry.type === 'note') return (entry.data.noteType || 'SOAP') + ' Note' + (entry.data.contactMethod ? ` (${entry.data.contactMethod})` : '');
+  if (entry.type === 'note') return entry.data.noteTypeName || (entry.data.noteType || 'SOAP') + ' Note';
   if (entry.type === 'comm') return entry.data.subject || `${entry.data.direction || 'Outbound'} ${entry.data.method || 'Phone'} Call`;
   if (entry.type === 'assessment') {
     const t = assessmentTemplates.find(x => x.id === entry.data.templateId);
@@ -518,7 +518,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
       {/* Split */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* LEFT */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 space-y-3 lg:border-r border-border-light">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 lg:border-r border-border-light">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             {[['PCP',patient.pcp],['Insurance',patient.insurance.plan.split(' - ')[0]],['Program',patient.caseInfo.program],['Acuity',patient.caseInfo.acuity]].map(([l,v])=>(
               <div key={l} className="card px-4 py-3">
@@ -528,6 +528,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
             ))}
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
           <InfoCard title="Diagnoses" icon={HeartIcon} count={patient.diagnoses.length} defaultOpen>
             <div className="space-y-1.5">{patient.diagnoses.map((dx,i)=>(
               <div key={i} className="flex items-start gap-2">
@@ -641,6 +642,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
               </div>
             </div>
           )} />
+          </div>
         </div>
 
         {/* RIGHT - Documentation */}
