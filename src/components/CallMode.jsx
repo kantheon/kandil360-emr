@@ -10,7 +10,8 @@ import {
 import { assessmentTemplates } from '../data/assessmentTemplates';
 import AppointmentScheduler from './AppointmentScheduler';
 import { carePlanLibrary } from '../data/carePlanLibrary';
-import { addPatientEntry, getPatientEntries } from '../data/localStore';
+import { getPatientEntries } from '../data/localStore';
+import { useData } from '../contexts/DataContext';
 import { getPatientContacts } from '../data/contactHelpers';
 import { callSubjects } from '../data/callSubjects';
 import { noteTypes } from '../data/noteTypes';
@@ -787,6 +788,7 @@ function getEntrySummary(entry) {
 
 /* ── Main ── */
 export default function CallMode({ patient, onClose, minimized, onToggleMinimize }) {
+  const { addEntry: dataAddEntry } = useData();
   const [entries,setEntries] = useState([]);
   const [expandedEntries,setExpandedEntries] = useState(new Set());
   const [showAddMenu,setShowAddMenu] = useState(false);
@@ -890,7 +892,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
         };
       }
     }
-    addPatientEntry(patient.id, typeMap[entry.type] || entry.type, dataToSave);
+    dataAddEntry(patient.id, typeMap[entry.type] || entry.type, dataToSave);
   };
 
   const saveAll=()=>{
