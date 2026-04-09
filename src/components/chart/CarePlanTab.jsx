@@ -350,10 +350,20 @@ function DocumentationModal({ open, onClose, patient, allGoals, goalStatuses, ad
   const initialGoalForms = useCallback(() => {
     return allGoals.map(goal => {
       const doc = goalStatuses[goal.id];
-      const interventions = (goal.interventions || []).map(iv => {
+      const goalIvs = goal.interventions || [];
+      // Start with interventions from the goal record
+      const interventions = goalIvs.map(iv => {
         const found = doc?.interventions?.find(d => d.text === iv);
         return { text: iv, status: found?.status || 'Initiated' };
       });
+      // Also include any interventions from the doc snapshot not in the goal record
+      if (doc?.interventions) {
+        doc.interventions.forEach(docIv => {
+          if (!goalIvs.includes(docIv.text)) {
+            interventions.push({ text: docIv.text, status: docIv.status || 'Initiated' });
+          }
+        });
+      }
       return {
         goalId: goal.id,
         goalDescription: goal.description,
