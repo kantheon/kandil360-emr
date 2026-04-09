@@ -292,6 +292,56 @@ function InfoCard({ title, icon: Icon, children, count, defaultOpen=false, actio
   );
 }
 
+/* ── Previous entries card with proper collapsible items ── */
+function PreviousEntriesCard({ title, icon: Icon, entries, renderHeader, renderPreview, renderBody }) {
+  const [open, setOpen] = useState(false);
+  const [expandedIdx, setExpandedIdx] = useState(null);
+  return (
+    <div className="card p-0 overflow-hidden">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-surface-alt transition-colors cursor-pointer text-left">
+        <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-primary-500" /></div>
+        <span className="text-sm font-semibold text-text-primary flex-1">{title}</span>
+        {entries.length > 0 && <span className="text-[10px] font-bold text-text-muted bg-surface-alt px-2 py-0.5 rounded-md">{entries.length}</span>}
+        {open ? <ChevronUpIcon className="w-4 h-4 text-text-muted" /> : <ChevronDownIcon className="w-4 h-4 text-text-muted" />}
+      </button>
+      {open && (
+        <div className="border-t border-border-light">
+          {entries.length === 0 ? (
+            <p className="text-xs text-text-muted px-4 py-3">None recorded</p>
+          ) : (
+            <div className="divide-y divide-border-light max-h-[350px] overflow-y-auto">
+              {entries.map((entry, i) => {
+                const isExpanded = expandedIdx === i;
+                const preview = renderPreview(entry);
+                return (
+                  <div key={entry.id || i}>
+                    <button onClick={() => setExpandedIdx(isExpanded ? null : i)} className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-surface-alt transition-colors cursor-pointer text-left text-xs">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {renderHeader(entry)}
+                      </div>
+                      {isExpanded ? <ChevronUpIcon className="w-3.5 h-3.5 text-text-muted shrink-0" /> : <ChevronDownIcon className="w-3.5 h-3.5 text-text-muted shrink-0" />}
+                    </button>
+                    {!isExpanded && preview && (
+                      <div className="px-4 pb-2 -mt-1">
+                        <p className="text-[11px] text-text-muted truncate">{preview}...</p>
+                      </div>
+                    )}
+                    {isExpanded && (
+                      <div className="px-4 pb-3 animate-fade-in">
+                        {renderBody(entry)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Entry type config ── */
 const typeConfig = {
   note:{label:'Progress Notes',icon:DocumentTextIcon,color:'bg-primary-100',iconColor:'text-primary-600'},
@@ -501,69 +551,30 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
           </InfoCard>
 
           {/* Previous Notes & Communications */}
-          <InfoCard title="Previous Notes" icon={DocumentTextIcon} count={(patient.progressNotes || []).length}>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {(patient.progressNotes || []).slice(0, 10).map((note, i) => {
-                const preview = (note.subjective || note.data || note.assessment || note.plan || '').slice(0, 80);
-                return (
-                <details key={note.id || i} className="group">
-                  <summary className="flex flex-col gap-1 text-xs cursor-pointer hover:bg-surface-hover rounded-lg p-2 -m-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="badge badge-info text-[9px]">{note.type}</span>
-                      <span className="badge badge-neutral text-[9px]">{note.contactMethod}</span>
-                      <span className="text-text-muted text-[10px]">{note.date}</span>
-                      <ChevronDownIcon className="w-3 h-3 text-text-muted group-open:rotate-180 transition-transform shrink-0 ml-auto" />
-                    </div>
-                    {preview && <p className="text-[11px] text-text-muted truncate group-open:hidden">{preview}...</p>}
-                  </summary>
-                  <div className="mt-1.5 pl-1 space-y-1.5 text-[11px]">
-                    {note.type === 'SOAP' ? (
-                      <>
-                        {note.subjective && <div><span className="font-semibold text-primary-600">S:</span> <span className="text-text-secondary">{note.subjective}</span></div>}
-                        {note.objective && <div><span className="font-semibold text-accent-600">O:</span> <span className="text-text-secondary">{note.objective}</span></div>}
-                        {note.assessment && <div><span className="font-semibold text-warn-500">A:</span> <span className="text-text-secondary">{note.assessment}</span></div>}
-                        {note.plan && <div><span className="font-semibold text-danger-500">P:</span> <span className="text-text-secondary">{note.plan}</span></div>}
-                      </>
-                    ) : (
-                      <>
-                        {note.data && <div><span className="font-semibold text-primary-600">D:</span> <span className="text-text-secondary">{note.data}</span></div>}
-                        {note.action && <div><span className="font-semibold text-accent-600">A:</span> <span className="text-text-secondary">{note.action}</span></div>}
-                        {note.response && <div><span className="font-semibold text-warn-500">R:</span> <span className="text-text-secondary">{note.response}</span></div>}
-                      </>
-                    )}
-                    <p className="text-[10px] text-text-muted">{note.author} &middot; {note.time}</p>
-                  </div>
-                </details>
-              );})}
-              {(patient.progressNotes || []).length === 0 && <p className="text-xs text-text-muted">No previous notes</p>}
+          <PreviousEntriesCard title="Previous Notes" icon={DocumentTextIcon} entries={(patient.progressNotes || []).slice(0, 10)} renderHeader={(note) => (
+            <><span className="badge badge-info text-[9px]">{note.type}</span><span className="badge badge-neutral text-[9px]">{note.contactMethod}</span><span className="text-text-muted text-[10px]">{note.date}</span></>
+          )} renderPreview={(note) => (note.subjective || note.data || note.assessment || '').slice(0, 80)} renderBody={(note) => (
+            <div className="space-y-1.5 text-[11px]">
+              {note.type === 'SOAP' ? (
+                <>{note.subjective&&<div><span className="font-semibold text-primary-600">S:</span> {note.subjective}</div>}{note.objective&&<div><span className="font-semibold text-accent-600">O:</span> {note.objective}</div>}{note.assessment&&<div><span className="font-semibold text-warn-500">A:</span> {note.assessment}</div>}{note.plan&&<div><span className="font-semibold text-danger-500">P:</span> {note.plan}</div>}</>
+              ) : (
+                <>{note.data&&<div><span className="font-semibold text-primary-600">D:</span> {note.data}</div>}{note.action&&<div><span className="font-semibold text-accent-600">A:</span> {note.action}</div>}{note.response&&<div><span className="font-semibold text-warn-500">R:</span> {note.response}</div>}</>
+              )}
+              <p className="text-[10px] text-text-muted">{note.author} &middot; {note.time}</p>
             </div>
-          </InfoCard>
+          )} />
 
-          <InfoCard title="Previous Communications" icon={ChatBubbleLeftRightIcon} count={(patient.communications || []).length}>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {(patient.communications || []).slice(0, 10).map((comm, i) => (
-                <details key={comm.id || i} className="group">
-                  <summary className="flex flex-col gap-1 text-xs cursor-pointer hover:bg-surface-hover rounded-lg p-2 -m-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`badge text-[9px] ${comm.direction === 'Outbound' ? 'badge-info' : 'badge-active'}`}>{comm.direction}</span>
-                      <span className="font-medium text-text-primary flex-1 truncate">{comm.subject}</span>
-                      <span className="text-text-muted text-[10px] shrink-0">{comm.date}</span>
-                      <ChevronDownIcon className="w-3 h-3 text-text-muted group-open:rotate-180 transition-transform shrink-0" />
-                    </div>
-                    {comm.summary && <p className="text-[11px] text-text-muted truncate group-open:hidden">{comm.summary.slice(0, 90)}...</p>}
-                  </summary>
-                  <div className="mt-1.5 pl-1 text-[11px] text-text-secondary">
-                    <p>{comm.summary}</p>
-                    <div className="flex gap-3 mt-1 text-[10px] text-text-muted">
-                      <span>{comm.contactPerson} ({comm.contactRole})</span>
-                      <span>Outcome: {comm.outcome}</span>
-                    </div>
-                  </div>
-                </details>
-              ))}
-              {(patient.communications || []).length === 0 && <p className="text-xs text-text-muted">No previous communications</p>}
+          <PreviousEntriesCard title="Previous Communications" icon={ChatBubbleLeftRightIcon} entries={(patient.communications || []).slice(0, 10)} renderHeader={(comm) => (
+            <><span className={`badge text-[9px] ${comm.direction==='Outbound'?'badge-info':'badge-active'}`}>{comm.direction}</span><span className="font-medium text-text-primary truncate">{comm.subject}</span><span className="text-text-muted text-[10px] shrink-0">{comm.date}</span></>
+          )} renderPreview={(comm) => (comm.summary || '').slice(0, 90)} renderBody={(comm) => (
+            <div className="text-[11px] text-text-secondary">
+              <p>{comm.summary}</p>
+              <div className="flex flex-wrap gap-3 mt-1.5 text-[10px] text-text-muted">
+                <span>{comm.contactPerson} ({comm.contactRole})</span>
+                <span>Outcome: {comm.outcome}</span>
+              </div>
             </div>
-          </InfoCard>
+          )} />
         </div>
 
         {/* RIGHT - Documentation */}
