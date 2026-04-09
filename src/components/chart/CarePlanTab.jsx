@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   FlagIcon, CheckCircleIcon, ClockIcon, PlusIcon, TrashIcon,
   ChevronDownIcon, ChevronUpIcon, CalendarIcon, XCircleIcon,
@@ -44,10 +44,15 @@ function formatNow() {
 
 /* ── Main Component ─────────────────────────────────────────────────── */
 
-export default function CarePlanTab({ patient }) {
+export default function CarePlanTab({ patient, autoOpenDoc }) {
   const { addEntry, deleteEntry, isEditable, version } = useData();
 
   const [showDocModal, setShowDocModal] = useState(false);
+
+  // Auto-open documentation modal when triggered from outside (e.g. Call Mode + menu)
+  useEffect(() => {
+    if (autoOpenDoc) setShowDocModal(true);
+  }, [autoOpenDoc]);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -999,11 +1004,11 @@ function AddGoalModal({ open, onClose, patientId, addEntry }) {
   const canSave = goalDesc.trim().length > 0;
 
   const handleSave = () => {
+    onClose();
     const allIvs = [
       ...Array.from(checkedIvs),
       ...customIvs.filter(iv => iv.trim()),
     ];
-
     addEntry(patientId, 'carePlanGoals', {
       healthConcern: concern,
       description: goalDesc,
@@ -1011,8 +1016,7 @@ function AddGoalModal({ open, onClose, patientId, addEntry }) {
       targetDate,
       interventions: allIvs,
     });
-
-    handleClose();
+    reset();
   };
 
   return (

@@ -340,8 +340,12 @@ function InfoCard({ title, icon: Icon, children, count, action }) {
 }
 
 /* ── Left Panel with tabs ── */
-function CallModeLeftPanel({ patient, mergedAppointments, mergedGoals, addEntry }) {
+function CallModeLeftPanel({ patient, mergedAppointments, mergedGoals, addEntry, forceTab, carePlanDocTrigger, onForceTabHandled }) {
   const [tab, setTab] = useState('overview');
+
+  useEffect(() => {
+    if (forceTab) { setTab(forceTab); onForceTabHandled?.(); }
+  }, [forceTab, onForceTabHandled]);
   const [detailItem, setDetailItem] = useState(null);
 
   const leftTabs = [
@@ -467,7 +471,7 @@ function CallModeLeftPanel({ patient, mergedAppointments, mergedGoals, addEntry 
 
         {/* CARE PLAN */}
         {tab === 'careplan' && (
-          <CarePlanTab patient={patient} />
+          <CarePlanTab patient={patient} autoOpenDoc={carePlanDocTrigger} />
         )}
 
         {/* AUTHS */}
@@ -689,8 +693,10 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   const [expandedEntries,setExpandedEntries] = useState(new Set());
   const [showAddMenu,setShowAddMenu] = useState(false);
   const [saveCount,setSaveCount] = useState(0);
-  const [activeModal,setActiveModal] = useState(null); // entry type string or null
+  const [activeModal,setActiveModal] = useState(null);
   const [modalFormData,setModalFormData] = useState({});
+  const [carePlanDocTrigger,setCarePlanDocTrigger] = useState(0);
+  const [forceLeftTab,setForceLeftTab] = useState(null);
 
   useEffect(()=>{
     if(!minimized){document.body.style.overflow='hidden';}else{document.body.style.overflow='';}
@@ -847,7 +853,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
       {/* Split */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* LEFT - Tabbed patient view */}
-        <CallModeLeftPanel patient={patient} mergedAppointments={mergedAppointments} mergedGoals={mergedGoals} addEntry={addEntry} />
+        <CallModeLeftPanel patient={patient} mergedAppointments={mergedAppointments} mergedGoals={mergedGoals} addEntry={addEntry} forceTab={forceLeftTab} carePlanDocTrigger={carePlanDocTrigger} onForceTabHandled={()=>setForceLeftTab(null)} />
 
         {/* RIGHT - Documentation */}
         <div className="w-full lg:w-[440px] flex flex-col bg-white shrink-0 min-h-[40vh] lg:min-h-0 border-t lg:border-t-0">
@@ -871,6 +877,10 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                         <t.icon className="w-4 h-4 text-text-muted" /><span className="text-xs font-medium text-text-primary">{t.label}</span>
                       </button>
                     ))}
+                    <div className="border-t border-border-light my-1" />
+                    <button onClick={()=>{setForceLeftTab('careplan');setCarePlanDocTrigger(c=>c+1);setShowAddMenu(false);}} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-primary-50 transition-colors cursor-pointer text-left">
+                      <FlagIcon className="w-4 h-4 text-text-muted" /><span className="text-xs font-medium text-text-primary">Care Plan Documentation</span>
+                    </button>
                   </div>
                 )}
               </div>
