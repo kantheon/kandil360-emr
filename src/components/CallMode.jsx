@@ -655,12 +655,21 @@ const INTERVENTION_STATUSES = ['Initiated','In Progress','Completed','Partially 
 
 function CarePlanDocForm({ entry, onChange, disabled, patient }) {
   const goals = patient?.carePlan?.goals || [];
-  // Initialize goalForms from entry data or from current goals
+
+  // Initialize goalForms - persist to entry on first render so mutations work
+  const [initialized, setInitialized] = useState(false);
   const goalForms = entry.goals || goals.map(g => ({
     goalId: g.id, goalDescription: g.description, healthConcern: g.healthConcern || '',
     goalStatus: g.status || 'Initiated',
     interventions: (g.interventions || []).map(iv => ({ text: iv, status: 'Initiated' })),
   }));
+
+  useEffect(() => {
+    if (!initialized && !entry.goals && goalForms.length > 0) {
+      onChange({ ...entry, goals: goalForms });
+      setInitialized(true);
+    }
+  }, [initialized, entry, goalForms, onChange]);
 
   const updateGoalStatus = (gIdx, status) => {
     const next = [...goalForms]; next[gIdx] = { ...next[gIdx], goalStatus: status };
