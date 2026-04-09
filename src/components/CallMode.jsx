@@ -503,13 +503,18 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
           {/* Previous Notes & Communications */}
           <InfoCard title="Previous Notes" icon={DocumentTextIcon} count={(patient.progressNotes || []).length}>
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {(patient.progressNotes || []).slice(0, 10).map((note, i) => (
+              {(patient.progressNotes || []).slice(0, 10).map((note, i) => {
+                const preview = (note.subjective || note.data || note.assessment || note.plan || '').slice(0, 80);
+                return (
                 <details key={note.id || i} className="group">
-                  <summary className="flex items-center gap-2 text-xs cursor-pointer hover:bg-surface-hover rounded-lg p-1.5 -m-1.5">
-                    <span className="badge badge-info text-[9px]">{note.type}</span>
-                    <span className="badge badge-neutral text-[9px]">{note.contactMethod}</span>
-                    <span className="text-text-muted text-[10px] flex-1">{note.date}</span>
-                    <ChevronDownIcon className="w-3 h-3 text-text-muted group-open:rotate-180 transition-transform shrink-0" />
+                  <summary className="flex flex-col gap-1 text-xs cursor-pointer hover:bg-surface-hover rounded-lg p-2 -m-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="badge badge-info text-[9px]">{note.type}</span>
+                      <span className="badge badge-neutral text-[9px]">{note.contactMethod}</span>
+                      <span className="text-text-muted text-[10px]">{note.date}</span>
+                      <ChevronDownIcon className="w-3 h-3 text-text-muted group-open:rotate-180 transition-transform shrink-0 ml-auto" />
+                    </div>
+                    {preview && <p className="text-[11px] text-text-muted truncate group-open:hidden">{preview}...</p>}
                   </summary>
                   <div className="mt-1.5 pl-1 space-y-1.5 text-[11px]">
                     {note.type === 'SOAP' ? (
@@ -529,7 +534,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                     <p className="text-[10px] text-text-muted">{note.author} &middot; {note.time}</p>
                   </div>
                 </details>
-              ))}
+              );})}
               {(patient.progressNotes || []).length === 0 && <p className="text-xs text-text-muted">No previous notes</p>}
             </div>
           </InfoCard>
@@ -538,11 +543,14 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {(patient.communications || []).slice(0, 10).map((comm, i) => (
                 <details key={comm.id || i} className="group">
-                  <summary className="flex items-center gap-2 text-xs cursor-pointer hover:bg-surface-hover rounded-lg p-1.5 -m-1.5">
-                    <span className={`badge text-[9px] ${comm.direction === 'Outbound' ? 'badge-info' : 'badge-active'}`}>{comm.direction}</span>
-                    <span className="font-medium text-text-primary flex-1 truncate">{comm.subject}</span>
-                    <span className="text-text-muted text-[10px] shrink-0">{comm.date}</span>
-                    <ChevronDownIcon className="w-3 h-3 text-text-muted group-open:rotate-180 transition-transform shrink-0" />
+                  <summary className="flex flex-col gap-1 text-xs cursor-pointer hover:bg-surface-hover rounded-lg p-2 -m-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className={`badge text-[9px] ${comm.direction === 'Outbound' ? 'badge-info' : 'badge-active'}`}>{comm.direction}</span>
+                      <span className="font-medium text-text-primary flex-1 truncate">{comm.subject}</span>
+                      <span className="text-text-muted text-[10px] shrink-0">{comm.date}</span>
+                      <ChevronDownIcon className="w-3 h-3 text-text-muted group-open:rotate-180 transition-transform shrink-0" />
+                    </div>
+                    {comm.summary && <p className="text-[11px] text-text-muted truncate group-open:hidden">{comm.summary.slice(0, 90)}...</p>}
                   </summary>
                   <div className="mt-1.5 pl-1 text-[11px] text-text-secondary">
                     <p>{comm.summary}</p>
