@@ -314,6 +314,9 @@ export default function VitalsTab({ patient }) {
   };
 
   const handleSave = () => {
+    setShowForm(false);
+    const currentEditing = editingEntry;
+    setEditingEntry(null);
     const dt = fDatetime || new Date().toISOString().slice(0, 16);
     const dateStr = new Date(dt).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -342,11 +345,11 @@ export default function VitalsTab({ patient }) {
       author: 'Current User',
     };
 
-    if (editingEntry) {
+    if (currentEditing) {
       // Track which fields changed for audit trail
       const vitalFields = ['systolic', 'diastolic', 'heartRate', 'temperature', 'oxygenSaturation', 'respiratoryRate', 'weight', 'painLevel', 'notes'];
       const fieldsChanged = vitalFields.filter(f => {
-        const oldVal = editingEntry[f];
+        const oldVal = currentEditing[f];
         const newVal = entryData[f];
         if (oldVal == null && newVal == null) return false;
         return oldVal !== newVal;
@@ -356,12 +359,10 @@ export default function VitalsTab({ patient }) {
         entryData.editedAt = new Date().toISOString();
         entryData.editedBy = 'Current User';
       }
-      updateEntry(patient.id, 'vitals', editingEntry.id, entryData);
+      updateEntry(patient.id, 'vitals', currentEditing.id, entryData);
     } else {
       addEntry(patient.id, 'vitals', entryData);
     }
-    setShowForm(false);
-    setEditingEntry(null);
     resetForm();
   };
 

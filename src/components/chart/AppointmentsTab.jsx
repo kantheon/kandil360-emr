@@ -50,13 +50,15 @@ export default function AppointmentsTab({ patient }) {
   };
 
   const handleSave = () => {
+    setShowForm(false);
+    const currentEditing = editingEntry;
+    setEditingEntry(null);
     const entry = { ...formData, status: 'Scheduled' };
-    if (editingEntry) {
-      updateEntry(patient.id, 'appointments', editingEntry.id, entry);
+    if (currentEditing) {
+      updateEntry(patient.id, 'appointments', currentEditing.id, entry);
     } else {
       addEntry(patient.id, 'appointments', entry);
     }
-    setShowForm(false);
     resetForm();
   };
 

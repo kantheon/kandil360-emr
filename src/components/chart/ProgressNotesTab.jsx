@@ -71,6 +71,9 @@ export default function ProgressNotesTab({ patient }) {
   };
 
   const handleSave = () => {
+    setShowForm(false);
+    const currentEditing = editingEntry;
+    setEditingEntry(null);
     const dt = datetime || new Date().toISOString().slice(0, 16);
     const dateStr = new Date(dt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const timeStr = new Date(dt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -80,13 +83,11 @@ export default function ProgressNotesTab({ patient }) {
       contactMethod,
       ...fieldValues,
     };
-    if (editingEntry) {
-      updateEntry(patient.id, 'progressNotes', editingEntry.id, entryData);
+    if (currentEditing) {
+      updateEntry(patient.id, 'progressNotes', currentEditing.id, entryData);
     } else {
       addEntry(patient.id, 'progressNotes', entryData);
     }
-    setShowForm(false);
-    setEditingEntry(null);
     resetForm();
   };
 

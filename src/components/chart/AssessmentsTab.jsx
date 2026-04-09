@@ -76,12 +76,15 @@ export default function AssessmentsTab({ patient }) {
 
   const handleSaveAssessment = () => {
     if (!selectedTemplate || !allAnswered) return;
+    setShowForm(false);
+    const currentEditing = editingAssessment;
+    setEditingAssessment(null);
     const result = getScoreResult(selectedTemplate, formAnswers);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
-    if (editingAssessment) {
+    if (currentEditing) {
       // Build edit history entry
-      const oldAnswers = editingAssessment.answers || {};
+      const oldAnswers = currentEditing.answers || {};
       const fieldsChanged = selectedTemplate.questions
         .filter(q => oldAnswers[q.id] !== formAnswers[q.id])
         .map(q => q.id);
@@ -94,10 +97,10 @@ export default function AssessmentsTab({ patient }) {
         editedBy: 'Current User',
         fieldsChanged,
         changes,
-        previousScore: editingAssessment.score,
+        previousScore: currentEditing.score,
         newScore: result.total,
       };
-      const existingHistory = editingAssessment.editHistory || [];
+      const existingHistory = currentEditing.editHistory || [];
       const updatedData = {
         answers: formAnswers,
         score: result.total,
@@ -105,7 +108,7 @@ export default function AssessmentsTab({ patient }) {
         summary: `${selectedTemplate.name}: Score ${result.total} - ${result.label}`,
         editHistory: [...existingHistory, historyEntry],
       };
-      updateEntry(patient.id, 'assessments', editingAssessment.id, updatedData);
+      updateEntry(patient.id, 'assessments', currentEditing.id, updatedData);
     } else {
       const entry = {
         templateId: selectedTemplate.id,
@@ -127,10 +130,8 @@ export default function AssessmentsTab({ patient }) {
       };
       addEntry(patient.id, 'assessments', entry);
     }
-    setShowForm(false);
     setSelectedTemplate(null);
     setFormAnswers({});
-    setEditingAssessment(null);
   };
 
   const handleDelete = () => {

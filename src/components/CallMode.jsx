@@ -59,6 +59,7 @@ function getEntryTitle(entry) {
     return t ? t.name : 'Assessment';
   }
   if (entry.type === 'appointment') return entry.data.type || 'New Appointment';
+  if (entry.type === 'careplanDoc') return `Care Plan Documentation (${(entry.data.goals || []).length} goals)`;
   if (entry.type === 'goal') {
     const hc = entry.data.healthConcern;
     const desc = entry.data.description;
@@ -139,14 +140,18 @@ function CommForm({ entry, onChange, disabled, patient }) {
         <SearchableDropdown label="Call Type" options={callSubjects} value={entry.subject||''} onChange={v=>onChange({...entry,subject:v})} placeholder="Search call type..." small />
       )}
       <textarea disabled={disabled} className="textarea-field text-xs !min-h-[48px] disabled:opacity-60" rows={2} placeholder="Summary..." value={entry.summary||''} onChange={e=>onChange({...entry,summary:e.target.value})} />
-      <div className="grid grid-cols-2 gap-2">
-        {disabled ? (
-          <div className="text-xs"><span className="text-text-muted">Outcome:</span> <span className="font-medium">{entry.outcome || '-'}</span></div>
-        ) : (
-          <SearchableDropdown label="Outcome" options={callOutcomes} value={entry.outcome||''} onChange={v=>onChange({...entry,outcome:v})} placeholder="Search outcome..." small />
-        )}
-        <input disabled={disabled} type="date" className="input-field py-1.5 text-xs disabled:opacity-60" value={entry.followUpDate||''} onChange={e=>onChange({...entry,followUpDate:e.target.value})} />
-      </div>
+      {disabled ? (
+        <div className="text-xs"><span className="text-text-muted">Outcome:</span> <span className="font-medium">{entry.outcome || '-'}</span></div>
+      ) : (
+        <SearchableDropdown label="Outcome" options={callOutcomes} value={entry.outcome||''} onChange={v=>onChange({...entry,outcome:v})} placeholder="Search outcome..." small />
+      )}
+      {!disabled && (
+        <div>
+          <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Follow-up Date <span className="text-text-muted font-normal">(optional)</span></label>
+          <input type="date" className="input-field py-1.5 text-xs" value={entry.followUpDate||''} onChange={e=>onChange({...entry,followUpDate:e.target.value})} />
+        </div>
+      )}
+      {disabled && entry.followUpDate && <div className="text-xs"><span className="text-text-muted">Follow-up:</span> <span className="font-medium">{entry.followUpDate}</span></div>}
     </div>
   );
 }
@@ -645,12 +650,83 @@ function PreviousEntriesCard({ title, icon: Icon, entries, renderHeader, renderP
 }
 
 /* ── Entry type config ── */
+const INTERVENTION_STATUSES = ['Initiated','In Progress','Completed','Partially Met','Not Met','Deferred'];
+
+function CarePlanDocForm({ entry, onChange, disabled, patient }) {
+  const goals = patient?.carePlan?.goals || [];
+  // Initialize goalForms from entry data or from current goals
+  const goalForms = entry.goals || goals.map(g => ({
+    goalId: g.id, goalDescription: g.description, healthConcern: g.healthConcern || '',
+    goalStatus: g.status || 'Initiated',
+    interventions: (g.interventions || []).map(iv => ({ text: iv, status: 'Initiated' })),
+  }));
+
+  const updateGoalStatus = (gIdx, status) => {
+    const next = [...goalForms]; next[gIdx] = { ...next[gIdx], goalStatus: status };
+    onChange({ ...entry, goals: next });
+  };
+  const updateIvStatus = (gIdx, ivIdx, status) => {
+    const next = [...goalForms];
+    const ivs = [...next[gIdx].interventions]; ivs[ivIdx] = { ...ivs[ivIdx], status };
+    next[gIdx] = { ...next[gIdx], interventions: ivs };
+    onChange({ ...entry, goals: next });
+  };
+
+  if (disabled) {
+    return (
+      <div className="space-y-3">
+        {(entry.goals || []).map((g, gi) => (
+          <div key={gi} className="bg-surface-alt rounded-lg p-2.5 border border-border-light">
+            {g.healthConcern && <p className="text-[9px] text-text-muted uppercase font-semibold">{g.healthConcern}</p>}
+            <div className="flex items-center justify-between"><p className="text-xs font-medium text-text-primary">{g.goalDescription}</p><span className="text-[10px] font-semibold text-primary-600">{g.goalStatus}</span></div>
+            {g.interventions?.map((iv, ii) => (
+              <div key={ii} className="flex justify-between text-[11px] mt-1 pl-2 border-l-2 border-border-light"><span className="text-text-secondary">{iv.text}</span><span className="text-text-muted font-medium">{iv.status}</span></div>
+            ))}
+          </div>
+        ))}
+        {entry.note && <div className="text-xs text-text-secondary"><span className="text-text-muted">Note:</span> {entry.note}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {goalForms.map((gf, gIdx) => (
+        <div key={gf.goalId || gIdx} className="card p-3 space-y-2">
+          {gf.healthConcern && <p className="text-[9px] text-text-muted uppercase font-semibold tracking-wider">{gf.healthConcern}</p>}
+          <p className="text-xs font-semibold text-text-primary">{gf.goalDescription}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-text-muted font-medium">Goal Status:</span>
+            <select value={gf.goalStatus} onChange={e => updateGoalStatus(gIdx, e.target.value)} className="input-field py-1 px-2 text-[10px] font-semibold w-auto min-w-[120px]">
+              {INTERVENTION_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5 pl-2 border-l-2 border-primary-200">
+            {gf.interventions.map((iv, ivIdx) => (
+              <div key={ivIdx} className="flex items-center gap-2">
+                <span className="text-[11px] text-text-secondary flex-1">{iv.text}</span>
+                <select value={iv.status} onChange={e => updateIvStatus(gIdx, ivIdx, e.target.value)} className="input-field py-1 px-2 text-[10px] font-semibold w-auto min-w-[110px] shrink-0">
+                  {INTERVENTION_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div>
+        <label className="text-[10px] font-medium text-text-secondary mb-0.5 block">Documentation Note</label>
+        <textarea className="textarea-field text-xs !min-h-[48px]" rows={2} placeholder="Observations, follow-up actions..." value={entry.note || ''} onChange={e => onChange({ ...entry, note: e.target.value, goals: goalForms })} />
+      </div>
+    </div>
+  );
+}
+
 const typeConfig = {
   note:{label:'Progress Notes',icon:DocumentTextIcon,color:'bg-primary-100',iconColor:'text-primary-600'},
   comm:{label:'Communications',icon:ChatBubbleLeftRightIcon,color:'bg-accent-100',iconColor:'text-accent-600'},
   assessment:{label:'Assessments',icon:ClipboardDocumentCheckIcon,color:'bg-warn-100',iconColor:'text-warn-600'},
   appointment:{label:'Appointments',icon:CalendarDaysIcon,color:'bg-primary-100',iconColor:'text-primary-600'},
-  goal:{label:'Care Plan Goals',icon:FlagIcon,color:'bg-accent-100',iconColor:'text-accent-600'},
+  careplanDoc:{label:'Care Plan Documentation',icon:FlagIcon,color:'bg-accent-100',iconColor:'text-accent-600'},
 };
 
 /* ── Entry summary helper ── */
@@ -749,7 +825,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
 
   // Enrichment + save logic (used by saveAll)
   const enrichAndSave=(entry)=>{
-    const typeMap = { note:'progressNotes', comm:'communications', assessment:'assessments', appointment:'appointments', goal:'carePlanGoals' };
+    const typeMap = { note:'progressNotes', comm:'communications', assessment:'assessments', appointment:'appointments', goal:'carePlanGoals', careplanDoc:'carePlanDocumentation' };
     let dataToSave = { ...entry.data };
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -767,6 +843,11 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
       dataToSave.date = today;
       dataToSave.time = timeNow;
       dataToSave.followUpNeeded = !!dataToSave.followUpDate;
+    }
+    if (entry.type === 'careplanDoc') {
+      dataToSave.date = today;
+      dataToSave.time = timeNow;
+      dataToSave.author = 'Current User';
     }
     if (entry.type === 'assessment' && dataToSave.templateId) {
       const tpl = assessmentTemplates.find(t => t.id === dataToSave.templateId);
@@ -878,7 +959,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                       </button>
                     ))}
                     <div className="border-t border-border-light my-1" />
-                    <button onClick={()=>{setForceLeftTab('careplan');setCarePlanDocTrigger(c=>c+1);setShowAddMenu(false);}} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-primary-50 transition-colors cursor-pointer text-left">
+                    <button onClick={()=>{openModal('careplanDoc');setForceLeftTab('careplan');}} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-primary-50 transition-colors cursor-pointer text-left">
                       <FlagIcon className="w-4 h-4 text-text-muted" /><span className="text-xs font-medium text-text-primary">Care Plan Documentation</span>
                     </button>
                   </div>
@@ -931,6 +1012,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                               {entry.type==='comm'&&<CommForm entry={entry.data} onChange={()=>{}} disabled={true} patient={patient} />}
                               {entry.type==='assessment'&&<AssessmentForm entry={entry.data} onChange={()=>{}} disabled={true} />}
                               {entry.type==='appointment'&&<AppointmentForm entry={entry.data} onChange={()=>{}} disabled={true} />}
+                              {entry.type==='careplanDoc'&&<CarePlanDocForm entry={entry.data} onChange={()=>{}} disabled={true} patient={patient} />}
                               {entry.type==='goal'&&<GoalForm entry={entry.data} onChange={()=>{}} disabled={true} patient={patient} />}
                             </div>
                           )}
@@ -962,9 +1044,10 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                     {activeModal==='comm'&&<><ChatBubbleLeftRightIcon className="w-4 h-4 text-accent-500" />New Communication</>}
                     {activeModal==='assessment'&&<><ClipboardDocumentCheckIcon className="w-4 h-4 text-warn-500" />New Assessment</>}
                     {activeModal==='appointment'&&<><CalendarDaysIcon className="w-4 h-4 text-primary-500" />New Appointment</>}
+                    {activeModal==='careplanDoc'&&<><FlagIcon className="w-4 h-4 text-accent-500" />Care Plan Documentation</>}
                     {activeModal==='goal'&&<><FlagIcon className="w-4 h-4 text-accent-500" />New Care Plan Goal</>}
                   </h2>
-                  <button onClick={()=>{setActiveModal(null);setModalFormData({});}} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-muted cursor-pointer"><XMarkIcon className="w-4 h-4" /></button>
+                  <button onClick={()=>{setActiveModal(null);setModalFormData({});setEditingEntryId(null);}} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-muted cursor-pointer"><XMarkIcon className="w-4 h-4" /></button>
                 </div>
                 {/* Modal body */}
                 <div className="flex-1 overflow-y-auto p-5">
@@ -972,6 +1055,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                   {activeModal==='comm'&&<CommForm entry={modalFormData} onChange={setModalFormData} disabled={false} patient={patient} />}
                   {activeModal==='assessment'&&<AssessmentForm entry={modalFormData} onChange={setModalFormData} disabled={false} />}
                   {activeModal==='appointment'&&<AppointmentForm entry={modalFormData} onChange={setModalFormData} disabled={false} />}
+                  {activeModal==='careplanDoc'&&<CarePlanDocForm entry={modalFormData} onChange={setModalFormData} disabled={false} patient={patient} />}
                   {activeModal==='goal'&&<GoalForm entry={modalFormData} onChange={setModalFormData} disabled={false} patient={patient} />}
                 </div>
                 {/* Modal footer */}

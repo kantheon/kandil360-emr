@@ -72,6 +72,9 @@ export default function AdmissionsTab({ patient }) {
   };
 
   const handleSave = () => {
+    setShowForm(false);
+    const currentEditing = editingEntry;
+    setEditingEntry(null);
     const entry = {
       facility,
       facilityType,
@@ -79,14 +82,13 @@ export default function AdmissionsTab({ patient }) {
       admitDiagnosis,
       attendingPhysician,
       levelOfCare,
-      dischargeDate: editingEntry ? (editingEntry.dischargeDate || null) : null,
+      dischargeDate: currentEditing ? (currentEditing.dischargeDate || null) : null,
     };
-    if (editingEntry) {
-      updateEntry(patient.id, 'admissions', editingEntry.id, entry);
+    if (currentEditing) {
+      updateEntry(patient.id, 'admissions', currentEditing.id, entry);
     } else {
       addEntry(patient.id, 'admissions', entry);
     }
-    setShowForm(false);
     resetForm();
   };
 

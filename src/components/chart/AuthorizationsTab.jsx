@@ -193,6 +193,9 @@ export default function AuthorizationsTab({ patient }) {
   };
 
   const handleSave = () => {
+    setShowForm(false);
+    const currentEditing = editingEntry;
+    setEditingEntry(null);
     const entry = {
       authNumber: authNumber || generateAuthNumber(),
       insurancePlan,
@@ -211,12 +214,11 @@ export default function AuthorizationsTab({ patient }) {
       priority,
       linkedAdmissionId: linkedAdmissionId || null,
     };
-    if (editingEntry) {
-      updateEntry(patient.id, 'authorizations', editingEntry.id, entry);
+    if (currentEditing) {
+      updateEntry(patient.id, 'authorizations', currentEditing.id, entry);
     } else {
       addEntry(patient.id, 'authorizations', entry);
     }
-    setShowForm(false);
     resetForm();
   };
 

@@ -117,6 +117,9 @@ export default function CommunicationsTab({ patient }) {
   };
 
   const handleSave = () => {
+    setShowForm(false);
+    const currentEditing = editingEntry;
+    setEditingEntry(null);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const entryData = {
       date: today,
@@ -133,13 +136,11 @@ export default function CommunicationsTab({ patient }) {
       phoneConsent,
       calledNumber,
     };
-    if (editingEntry) {
-      updateEntry(patient.id, 'communications', editingEntry.id, entryData);
+    if (currentEditing) {
+      updateEntry(patient.id, 'communications', currentEditing.id, entryData);
     } else {
       addEntry(patient.id, 'communications', entryData);
     }
-    setShowForm(false);
-    setEditingEntry(null);
     resetForm();
   };
 

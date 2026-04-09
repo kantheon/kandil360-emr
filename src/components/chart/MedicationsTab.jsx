@@ -46,6 +46,9 @@ export default function MedicationsTab({ patient }) {
   };
 
   const handleSave = () => {
+    setShowForm(false);
+    const currentEditing = editingEntry;
+    setEditingEntry(null);
     const entryData = {
       name: medName,
       dose: medDose,
@@ -53,13 +56,11 @@ export default function MedicationsTab({ patient }) {
       prescriber: medPrescriber,
       status: medStatus,
     };
-    if (editingEntry) {
-      updateEntry(patient.id, 'medications', editingEntry.id, entryData);
+    if (currentEditing) {
+      updateEntry(patient.id, 'medications', currentEditing.id, entryData);
     } else {
       addEntry(patient.id, 'medications', entryData);
     }
-    setShowForm(false);
-    setEditingEntry(null);
     resetForm();
   };
 
