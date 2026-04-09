@@ -369,7 +369,11 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   const mergedAppointments = [
     ...patient.appointments,
     ...localAppts.map(a => ({ date: a.date || null, time: a.time || '', provider: a.provider || '', type: a.type || 'Appointment', location: a.location || '', status: 'Scheduled' }))
-  ];
+  ].sort((a, b) => {
+    const da = a.date || '9999'; const db = b.date || '9999';
+    if (da !== db) return da.localeCompare(db);
+    return (a.time || '').localeCompare(b.time || '');
+  });
   const mergedGoals = [
     ...patient.carePlan.goals,
     ...localGoals.map((g,i) => ({ id: `local-g-${i}`, description: g.description || g.healthConcern || 'New Goal', status: g.status || 'Not Started', targetDate: g.targetDate || '' }))
