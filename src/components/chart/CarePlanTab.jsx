@@ -51,6 +51,7 @@ export default function CarePlanTab({ patient }) {
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('All');
 
   const allGoals = patient.carePlan.goals;
 
@@ -138,25 +139,34 @@ export default function CarePlanTab({ patient }) {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <div className="bg-accent-50 rounded-2xl p-2.5 sm:p-3 text-center border border-accent-100">
-          <p className="text-lg sm:text-xl font-bold text-accent-600">{completed}</p>
-          <p className="text-[10px] sm:text-[11px] font-medium text-accent-700">Completed</p>
-        </div>
-        <div className="bg-primary-50 rounded-2xl p-2.5 sm:p-3 text-center border border-primary-100">
-          <p className="text-lg sm:text-xl font-bold text-primary-600">{active}</p>
-          <p className="text-[10px] sm:text-[11px] font-medium text-primary-700">Active</p>
-        </div>
-        <div className="bg-surface-alt rounded-2xl p-2.5 sm:p-3 text-center border border-border-light">
-          <p className="text-lg sm:text-xl font-bold text-text-secondary">{initiated}</p>
-          <p className="text-[10px] sm:text-[11px] font-medium text-text-muted">Initiated</p>
-        </div>
+      {/* Filter Bar */}
+      <div className="flex gap-2 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {[
+          { key: 'All', label: 'All', count: allGoals.length, bg: 'bg-white', text: 'text-text-primary', border: 'border-border' },
+          { key: 'Active', label: 'Active', count: active, bg: 'bg-primary-50', text: 'text-primary-700', border: 'border-primary-200' },
+          { key: 'Initiated', label: 'Initiated', count: initiated, bg: 'bg-surface-alt', text: 'text-text-secondary', border: 'border-border' },
+          { key: 'Completed', label: 'Completed', count: completed, bg: 'bg-accent-50', text: 'text-accent-700', border: 'border-accent-200' },
+          { key: 'Not Met', label: 'Not Met', count: allGoals.filter(g => getGoalStatus(g) === 'Not Met').length, bg: 'bg-danger-50', text: 'text-danger-600', border: 'border-danger-200' },
+          { key: 'Deferred', label: 'Deferred', count: allGoals.filter(g => getGoalStatus(g) === 'Deferred').length, bg: 'bg-surface-alt', text: 'text-text-muted', border: 'border-border' },
+        ].map(f => (
+          <button key={f.key} onClick={() => setStatusFilter(f.key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer shrink-0 ${
+              statusFilter === f.key ? `${f.bg} ${f.text} ${f.border} shadow-sm` : 'bg-white text-text-muted border-border-light hover:bg-surface-alt'
+            }`}>
+            {f.label}
+            <span className={`text-[10px] font-bold ${statusFilter === f.key ? '' : 'text-text-muted'}`}>{f.count}</span>
+          </button>
+        ))}
       </div>
 
       {/* Goals List (read-only cards) */}
       <div className="space-y-3">
-        {allGoals.map(goal => {
+        {allGoals.filter(goal => {
+          if (statusFilter === 'All') return true;
+          const s = getGoalStatus(goal);
+          if (statusFilter === 'Active') return ['In Progress', 'Partially Met'].includes(s);
+          return s === statusFilter;
+        }).map(goal => {
           const status = getGoalStatus(goal);
           const ivStatuses = getInterventionStatuses(goal);
           const style = getStyle(status);
