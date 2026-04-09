@@ -4,7 +4,7 @@ import {
   XMarkIcon, MinusIcon, PhoneIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon,
   DocumentTextIcon, ChatBubbleLeftRightIcon, ClipboardDocumentCheckIcon,
   CheckCircleIcon, TrashIcon, HeartIcon, BeakerIcon, CalendarDaysIcon,
-  BuildingOffice2Icon, FlagIcon, ShieldCheckIcon, ExclamationCircleIcon,
+  BuildingOffice2Icon, FlagIcon, ShieldCheckIcon, ExclamationCircleIcon, PencilSquareIcon,
   UserGroupIcon, ShieldExclamationIcon, LockClosedIcon
 } from '@heroicons/react/24/outline';
 import { assessmentTemplates } from '../data/assessmentTemplates';
@@ -742,12 +742,28 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   // Force re-read on save by depending on saveCount
   void saveCount;
 
-  const openModal=(type)=>{setActiveModal(type);setModalFormData({});setShowAddMenu(false);};
+  const [editingEntryId, setEditingEntryId] = useState(null);
+
+  const openModal=(type)=>{setActiveModal(type);setModalFormData({});setEditingEntryId(null);setShowAddMenu(false);};
   const addEntry=(type)=>{openModal(type);}; // kept for left panel calls
+
+  const editPendingEntry=(entry)=>{
+    setActiveModal(entry.type);
+    setModalFormData({...entry.data});
+    setEditingEntryId(entry.id);
+    setShowAddMenu(false);
+  };
+
   const addPending=()=>{
-    const id=Date.now();
-    setEntries(p=>[...p,{id,type:activeModal,data:{...modalFormData},saved:false}]);
-    setActiveModal(null);setModalFormData({});
+    if (editingEntryId) {
+      // Update existing pending entry
+      setEntries(p=>p.map(e=>e.id===editingEntryId?{...e,data:{...modalFormData}}:e));
+    } else {
+      // Add new pending entry
+      const id=Date.now();
+      setEntries(p=>[...p,{id,type:activeModal,data:{...modalFormData},saved:false}]);
+    }
+    setActiveModal(null);setModalFormData({});setEditingEntryId(null);
   };
   const removeEntry=(id)=>{setEntries(p=>p.filter(e=>e.id!==id));};
   const toggleEntry=(id)=>setExpandedEntries(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
@@ -921,7 +937,8 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                               </span>
                               {!isOpen && <p className="text-[10px] text-text-muted truncate">{summary.preview}</p>}
                             </div>
-                            {!entry.saved&&<button onClick={e=>{e.stopPropagation();removeEntry(entry.id);}} className="p-0.5 rounded hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer"><TrashIcon className="w-3 h-3" /></button>}
+                            {!entry.saved&&<button onClick={e=>{e.stopPropagation();editPendingEntry(entry);}} className="p-0.5 rounded hover:bg-primary-50 text-text-muted hover:text-primary-600 cursor-pointer" title="Edit"><PencilSquareIcon className="w-3 h-3" /></button>}
+                            {!entry.saved&&<button onClick={e=>{e.stopPropagation();removeEntry(entry.id);}} className="p-0.5 rounded hover:bg-danger-50 text-text-muted hover:text-danger-500 cursor-pointer" title="Remove"><TrashIcon className="w-3 h-3" /></button>}
                             {isOpen?<ChevronUpIcon className="w-3 h-3 text-text-muted shrink-0" />:<ChevronDownIcon className="w-3 h-3 text-text-muted shrink-0" />}
                           </button>
                           {isOpen&&(
@@ -976,9 +993,9 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
                 </div>
                 {/* Modal footer */}
                 <div className="shrink-0 px-5 py-3 border-t border-border-light flex items-center justify-end gap-2">
-                  <button onClick={()=>{setActiveModal(null);setModalFormData({});}} className="px-4 py-2 rounded-lg text-xs font-medium text-text-secondary hover:bg-surface-alt transition-colors cursor-pointer">Cancel</button>
+                  <button onClick={()=>{setActiveModal(null);setModalFormData({});setEditingEntryId(null);}} className="px-4 py-2 rounded-lg text-xs font-medium text-text-secondary hover:bg-surface-alt transition-colors cursor-pointer">Cancel</button>
                   <button onClick={addPending} className="px-4 py-2 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors cursor-pointer shadow-sm flex items-center gap-1.5">
-                    <PlusIcon className="w-3.5 h-3.5" />Add to Pending
+                    {editingEntryId ? <><PencilSquareIcon className="w-3.5 h-3.5" />Update Entry</> : <><PlusIcon className="w-3.5 h-3.5" />Add to Pending</>}
                   </button>
                 </div>
               </div>
