@@ -297,6 +297,11 @@ export default function CommunicationsTab({ patient }) {
                   <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-border-light">
                     <div className="flex items-center gap-1.5 text-xs"><span className="text-text-muted">Outcome:</span><span className="font-medium text-text-primary">{comm.outcome}</span></div>
                     {comm.followUpNeeded && <div className="flex items-center gap-1.5 text-xs"><span className="text-text-muted">Follow-up:</span><span className="font-medium text-warn-500">{comm.followUpDate}</span></div>}
+                    {comm.coverageStatus && (
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${comm.coverageStatus === 'Active' ? 'bg-accent-100 text-accent-700' : 'bg-danger-100 text-danger-600'}`}>
+                        {comm.coverageStatus === 'Active' ? 'Active Coverage' : 'Inactive'}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}

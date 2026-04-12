@@ -105,8 +105,17 @@ function NoteForm({ entry, onChange, disabled }) {
 
 function CommForm({ entry, onChange, disabled, patient }) {
   const contacts = patient ? getPatientContacts(patient) : [];
+  const coverageStatus = entry.coverageStatus || patient?.insurance?.status || '';
   return (
     <div className="space-y-2">
+      {/* Coverage status */}
+      {coverageStatus && (
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold ${coverageStatus === 'Active' ? 'bg-accent-50 text-accent-700 border border-accent-200' : 'bg-danger-50 text-danger-600 border border-danger-200'}`}>
+          <ShieldCheckIcon className="w-3.5 h-3.5" />
+          {coverageStatus === 'Active' ? 'Active Coverage Verified' : 'Coverage Inactive'}
+          <span className="text-[10px] font-normal ml-auto">{patient?.insurance?.plan?.split(' - ')[0]}</span>
+        </div>
+      )}
       {/* Contact dropdown */}
       {!disabled ? (
         <div>
@@ -958,17 +967,21 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
         <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/20 cursor-pointer" title="End"><XMarkIcon className="w-4 h-4" /></button>
       </div>
 
-      {/* Phone bar */}
+      {/* Phone bar + coverage */}
       <div className="flex items-center gap-2 px-3 sm:px-4 lg:px-6 py-1.5 bg-white border-b border-border-light shrink-0 overflow-x-auto flex-wrap sm:flex-nowrap" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider shrink-0">Dial:</span>
-        <a href={`tel:${patient.phone}`} className="flex items-center gap-1.5 bg-accent-50 text-accent-700 px-2.5 py-1 rounded-lg text-[11px] font-medium hover:bg-accent-100 transition-colors shrink-0">
+        <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider shrink-0">Dial & Log:</span>
+        <button onClick={() => { window.open(`tel:${patient.phone}`); openModal('comm'); setModalFormData({ contactPerson: `${patient.firstName} ${patient.lastName}`, calledNumber: patient.phone, contactRole: 'Patient', direction: 'Outbound', method: 'Phone', coverageStatus: patient.insurance.status }); }} className="flex items-center gap-1.5 bg-accent-50 text-accent-700 px-2.5 py-1 rounded-lg text-[11px] font-medium hover:bg-accent-100 transition-colors shrink-0 cursor-pointer">
           <PhoneIcon className="w-3 h-3" />Patient {patient.phone}
-        </a>
-        <a href={`tel:${patient.emergencyContact.phone}`} className="flex items-center gap-1.5 bg-warn-50 text-[#92400e] px-2.5 py-1 rounded-lg text-[11px] font-medium hover:bg-warn-100 transition-colors shrink-0">
+        </button>
+        <button onClick={() => { window.open(`tel:${patient.emergencyContact.phone}`); openModal('comm'); setModalFormData({ contactPerson: patient.emergencyContact.name, calledNumber: patient.emergencyContact.phone, contactRole: 'Family/Caregiver', direction: 'Outbound', method: 'Phone', coverageStatus: patient.insurance.status }); }} className="flex items-center gap-1.5 bg-warn-50 text-[#92400e] px-2.5 py-1 rounded-lg text-[11px] font-medium hover:bg-warn-100 transition-colors shrink-0 cursor-pointer">
           <PhoneIcon className="w-3 h-3" />{patient.emergencyContact.name} {patient.emergencyContact.phone}
-        </a>
+        </button>
         <div className="flex items-center gap-1.5 bg-primary-50 text-primary-700 px-2.5 py-1 rounded-lg text-[11px] font-medium shrink-0">
           <PhoneIcon className="w-3 h-3" />PCP: {patient.pcp}
+        </div>
+        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold shrink-0 ml-auto ${patient.insurance.status === 'Active' ? 'bg-accent-100 text-accent-700' : 'bg-danger-100 text-danger-600'}`}>
+          <ShieldCheckIcon className="w-3 h-3" />
+          {patient.insurance.status === 'Active' ? 'Active Coverage' : 'Inactive Coverage'}
         </div>
       </div>
 
