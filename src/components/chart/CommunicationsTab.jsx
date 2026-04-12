@@ -135,6 +135,7 @@ export default function CommunicationsTab({ patient }) {
       hipaaVerified,
       phoneConsent,
       calledNumber,
+      coverageStatus: patient.insurance?.status || '',
     };
     if (currentEditing) {
       updateEntry(patient.id, 'communications', currentEditing.id, entryData);

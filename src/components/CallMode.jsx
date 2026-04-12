@@ -892,6 +892,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
       dataToSave.date = today;
       dataToSave.time = timeNow;
       dataToSave.followUpNeeded = !!dataToSave.followUpDate;
+      if (!dataToSave.coverageStatus) dataToSave.coverageStatus = patient.insurance?.status || '';
     }
     if (entry.type === 'careplanDoc') {
       dataToSave.date = today;
