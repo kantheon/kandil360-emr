@@ -846,6 +846,7 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
   void saveCount;
 
   const [editingEntryId, setEditingEntryId] = useState(null);
+  const [dialPrompt, setDialPrompt] = useState(null); // { name, phone, role }
 
   const openModal=(type)=>{setActiveModal(type);setModalFormData({});setEditingEntryId(null);setShowAddMenu(false);};
   const addEntry=(type)=>{openModal(type);}; // kept for left panel calls
@@ -975,11 +976,10 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
 
       {/* Phone bar + coverage */}
       <div className="flex items-center gap-2 px-3 sm:px-4 lg:px-6 py-1.5 bg-white border-b border-border-light shrink-0 overflow-x-auto flex-wrap sm:flex-nowrap" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider shrink-0">Dial & Log:</span>
-        <button onClick={() => { window.open(`tel:${patient.phone}`); openModal('comm'); setModalFormData({ contactPerson: `${patient.firstName} ${patient.lastName}`, calledNumber: patient.phone, contactRole: 'Patient', direction: 'Outbound', method: 'Phone', coverageStatus: patient.insurance.status }); }} className="flex items-center gap-1.5 bg-accent-50 text-accent-700 px-2.5 py-1 rounded-lg text-[11px] font-medium hover:bg-accent-100 transition-colors shrink-0 cursor-pointer">
+        <button onClick={() => setDialPrompt({ name: `${patient.firstName} ${patient.lastName}`, phone: patient.phone, role: 'Patient' })} className="flex items-center gap-1.5 bg-accent-50 text-accent-700 px-2.5 py-1 rounded-lg text-[11px] font-medium hover:bg-accent-100 transition-colors shrink-0 cursor-pointer">
           <PhoneIcon className="w-3 h-3" />Patient {patient.phone}
         </button>
-        <button onClick={() => { window.open(`tel:${patient.emergencyContact.phone}`); openModal('comm'); setModalFormData({ contactPerson: patient.emergencyContact.name, calledNumber: patient.emergencyContact.phone, contactRole: 'Family/Caregiver', direction: 'Outbound', method: 'Phone', coverageStatus: patient.insurance.status }); }} className="flex items-center gap-1.5 bg-warn-50 text-[#92400e] px-2.5 py-1 rounded-lg text-[11px] font-medium hover:bg-warn-100 transition-colors shrink-0 cursor-pointer">
+        <button onClick={() => setDialPrompt({ name: patient.emergencyContact.name, phone: patient.emergencyContact.phone, role: 'Family/Caregiver' })} className="flex items-center gap-1.5 bg-warn-50 text-[#92400e] px-2.5 py-1 rounded-lg text-[11px] font-medium hover:bg-warn-100 transition-colors shrink-0 cursor-pointer">
           <PhoneIcon className="w-3 h-3" />{patient.emergencyContact.name} {patient.emergencyContact.phone}
         </button>
         <div className="flex items-center gap-1.5 bg-primary-50 text-primary-700 px-2.5 py-1 rounded-lg text-[11px] font-medium shrink-0">
@@ -990,6 +990,59 @@ export default function CallMode({ patient, onClose, minimized, onToggleMinimize
           {patient.insurance.status === 'Active' ? 'Active Coverage' : 'Inactive Coverage'}
         </div>
       </div>
+
+      {/* Dial prompt modal */}
+      {dialPrompt && createPortal(
+        <div className="fixed inset-0 z-[105] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setDialPrompt(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-fade-in">
+            {/* Coverage warning */}
+            {patient.insurance.status !== 'Active' && (
+              <div className="bg-danger-50 px-5 py-3 rounded-t-2xl border-b border-danger-200 flex items-center gap-2">
+                <ExclamationCircleIcon className="w-5 h-5 text-danger-500 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-danger-700">Coverage Inactive</p>
+                  <p className="text-[11px] text-danger-600">This member does not have active insurance coverage. Proceed with caution.</p>
+                </div>
+              </div>
+            )}
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-accent-100 flex items-center justify-center"><PhoneIcon className="w-5 h-5 text-accent-600" /></div>
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">{dialPrompt.name}</p>
+                  <p className="text-xs text-text-muted">{dialPrompt.role} &middot; {dialPrompt.phone}</p>
+                </div>
+              </div>
+              {patient.insurance.status === 'Active' && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent-50 border border-accent-200 text-[11px] font-semibold text-accent-700 mb-4">
+                  <ShieldCheckIcon className="w-3.5 h-3.5" /> Active Coverage &middot; {patient.insurance.plan.split(' - ')[0]}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <a href={`tel:${dialPrompt.phone}`} onClick={() => {
+                  const d = dialPrompt;
+                  setDialPrompt(null);
+                  openModal('comm');
+                  setModalFormData({ contactPerson: d.name, calledNumber: d.phone, contactRole: d.role, direction: 'Outbound', method: 'Phone', coverageStatus: patient.insurance.status });
+                }} className="flex items-center justify-center gap-2 bg-accent-600 text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-accent-700 transition-colors cursor-pointer">
+                  <PhoneIcon className="w-4 h-4" /> Call & Log
+                </a>
+                <button onClick={() => {
+                  const d = dialPrompt;
+                  setDialPrompt(null);
+                  openModal('comm');
+                  setModalFormData({ contactPerson: d.name, calledNumber: d.phone, contactRole: d.role, direction: 'Outbound', method: 'Phone', coverageStatus: patient.insurance.status });
+                }} className="flex items-center justify-center gap-2 bg-primary-600 text-white py-2.5 rounded-xl text-xs font-semibold hover:bg-primary-700 transition-colors cursor-pointer">
+                  <DocumentTextIcon className="w-4 h-4" /> Document Only
+                </button>
+              </div>
+              <button onClick={() => setDialPrompt(null)} className="w-full text-center text-xs text-text-muted mt-3 py-1 cursor-pointer hover:text-text-primary">Cancel</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Allergy bar */}
       {patient.allergies.length>0&&(
