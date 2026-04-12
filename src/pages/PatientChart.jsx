@@ -176,7 +176,7 @@ export default function PatientChart() {
       )}
 
       {/* Tab Content */}
-      <div className="p-3 sm:p-4 lg:p-6">
+      <div className="p-3 pt-5 sm:p-4 sm:pt-5 lg:p-6 lg:pt-6">
         <div className="max-w-7xl mx-auto">
           {renderTab()}
         </div>
