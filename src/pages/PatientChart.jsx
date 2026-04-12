@@ -83,9 +83,9 @@ export default function PatientChart() {
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white min-h-screen -mt-[1px] lg:mt-0">
       {/* STICKY HEADER - no gap, flush to top */}
-      <div className="sticky top-11 lg:top-0 z-20 bg-white shadow-sm">
+      <div className="sticky top-[43px] lg:top-0 z-20 bg-white shadow-sm">
         {/* Patient banner */}
         <div className="px-3 sm:px-4 lg:px-6 py-2 border-b border-border-light">
           <div className="flex items-center gap-2 sm:gap-3 max-w-7xl mx-auto">
@@ -138,24 +138,25 @@ export default function PatientChart() {
           </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="px-1 sm:px-2 lg:px-4 overflow-x-auto bg-surface-alt border-b border-border-light" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <div className="flex gap-0 sm:gap-0.5 max-w-7xl mx-auto py-0.5 sm:py-1">
+        {/* Mobile: dropdown tab selector */}
+        <div className="sm:hidden px-3 py-1.5 bg-surface-alt border-b border-border-light">
+          <select value={activeTab} onChange={e => setActiveTab(e.target.value)} className="input-field py-2 text-xs font-semibold w-full">
+            {tabs.map(tab => <option key={tab.id} value={tab.id}>{tab.label}</option>)}
+          </select>
+        </div>
+        {/* Desktop: button tab bar */}
+        <div className="hidden sm:block px-2 lg:px-4 bg-surface-alt border-b border-border-light">
+          <div className="flex gap-0.5 max-w-7xl mx-auto py-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer shrink-0 sm:flex-1 ${
-                    isActive
-                      ? 'bg-white text-primary-700 shadow-sm border border-border-light'
-                      : 'text-text-secondary hover:bg-white/60 hover:text-text-primary border border-transparent'
-                  }`}
-                >
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+                    isActive ? 'bg-white text-primary-700 shadow-sm border border-border-light' : 'text-text-secondary hover:bg-white/60 hover:text-text-primary border border-transparent'
+                  }`}>
                   <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-primary-500' : 'text-text-muted'}`} />
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  {tab.label}
                 </button>
               );
             })}
