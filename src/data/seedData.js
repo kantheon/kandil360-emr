@@ -770,7 +770,7 @@ export const patients = [
       groupNumber: 'N/A',
       type: 'Dual',
       copay: '$0',
-      status: 'Active'
+      status: 'Inactive'
     },
     emergencyContact: {
       name: 'Test Contact Five',
