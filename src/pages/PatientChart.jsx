@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import {
@@ -51,6 +51,8 @@ const riskColors = {
 export default function PatientChart() {
   const { patientId } = useParams();
   const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => { window.scrollTo(0, 0); }, [patientId]);
   const [callModeOpen, setCallModeOpen] = useState(false);
   const [callModeMinimized, setCallModeMinimized] = useState(false);
   const { getPatient } = useData();
