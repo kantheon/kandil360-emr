@@ -563,6 +563,12 @@ function CallModeLeftPanel({ patient, mergedAppointments, mergedGoals, addEntry,
                   <div className="bg-surface-alt rounded-lg p-3"><p className="text-[10px] text-text-muted uppercase font-semibold mb-1">Summary</p><p className="text-xs text-text-primary leading-relaxed">{c.summary}</p></div>
                   <div className="flex gap-3 text-xs"><span className="text-text-muted">Outcome:</span><span className="font-medium">{c.outcome}</span></div>
                   {c.followUpDate && <div className="flex gap-3 text-xs"><span className="text-text-muted">Follow-up:</span><span className="font-medium text-warn-500">{c.followUpDate}</span></div>}
+                  {c.coverageStatus && (
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold mt-1 ${c.coverageStatus === 'Active' ? 'bg-accent-50 text-accent-700 border border-accent-200' : 'bg-danger-50 text-danger-600 border border-danger-200'}`}>
+                      <ShieldCheckIcon className="w-3.5 h-3.5" />
+                      {c.coverageStatus === 'Active' ? 'Active Coverage Verified' : 'Coverage Inactive'}
+                    </div>
+                  )}
                 </>);
               })()}
               {/* Admission detail */}
