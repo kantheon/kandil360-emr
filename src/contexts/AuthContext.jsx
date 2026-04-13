@@ -4,6 +4,13 @@ import { auth, googleProvider } from '../firebase';
 
 const AuthContext = createContext();
 
+const TEST_USER = {
+  uid: 'test-user-001',
+  displayName: 'Test Nurse',
+  email: 'test@kandil360.com',
+  photoURL: null,
+};
+
 export function useAuth() {
   return useContext(AuthContext);
 }
@@ -21,9 +28,16 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginWithGoogle = () => signInWithPopup(auth, googleProvider);
-  const logout = () => signOut(auth);
+  const loginAsTest = () => { setUser(TEST_USER); };
+  const logout = () => {
+    if (user?.uid === TEST_USER.uid) {
+      setUser(null);
+    } else {
+      signOut(auth);
+    }
+  };
 
-  const value = { user, loading, loginWithGoogle, logout };
+  const value = { user, loading, loginWithGoogle, loginAsTest, logout };
 
   return (
     <AuthContext.Provider value={value}>

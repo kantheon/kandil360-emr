@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
-  const { loginWithGoogle } = useAuth();
+  const { loginWithGoogle, loginAsTest } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -70,7 +70,19 @@ export default function Login() {
             {loading ? 'Signing in...' : 'Continue with Google'}
           </button>
 
-          <div className="mt-6 pt-6 border-t border-border-light text-center">
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border-light" /></div>
+            <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-text-muted">or</span></div>
+          </div>
+
+          <button
+            onClick={() => loginAsTest()}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-50 border border-primary-200 rounded-xl text-sm font-medium text-primary-700 hover:bg-primary-100 hover:border-primary-300 transition-all cursor-pointer"
+          >
+            Continue as Test User
+          </button>
+
+          <div className="mt-5 pt-5 border-t border-border-light text-center">
             <p className="text-xs text-text-muted">
               Secure access for authorized care team members only
             </p>
